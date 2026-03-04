@@ -1,0 +1,51 @@
+<resources>
+    <!-- App -->
+    <string name="app_name">proyectoPruebaAppMusia1</string>
+    
+    <!-- User & Header -->
+    <string name="username">Usuario chido</string>
+    <string name="music_subtitle">Tu música, tu estilo</string>
+    <string name="content_description_profile">Foto de perfil</string>
+    
+    <!-- Search & Navigation -->
+    <string name="search_hint">Buscar...</string>
+    <string name="see_all">Ver todo</string>
+    
+    <!-- Bottom Navigation -->
+    <string name="home">Inicio</string>
+    <string name="explore">Explorar</string>
+    <string name="library">Biblioteca</string>
+    <string name="favorites">Favoritos</string>
+    
+    <!-- Sections -->
+    <string name="recently_played">Reproducido recientemente</string>
+    <string name="trending_playlists">Playlists en tendencia</string>
+    <string name="all_songs">Todas las canciones</string>
+    
+    <!-- Songs & Artists -->
+    <string name="my_song">Mi Canción</string>
+    <string name="artist_name">Artista Principal</string>
+    <string name="nostalgic_vibes">Vibes Nostálgicas</string>
+    <string name="green_beats">Green Beats</string>
+    <string name="dark_mood">Mood Oscuro</string>
+    <string name="emerald_skull">Emerald Skull</string>
+    
+    <!-- Playlists -->
+    <string name="music_mix">Music Mix</string>
+    <string name="chill_beats">Chill Beats</string>
+    <string name="song_count_format">%d canciones</string>
+    <string name="favorite_content_description">Añadir o quitar de favoritos</string>
+    <string name="favorites_empty">Aún no tienes canciones favoritas. Pulsa el corazón en una canción para añadirla.</string>
+
+    <!-- Full-screen player -->
+    <string name="close_player">Cerrar reproductor</string>
+    <string name="more_options">Más opciones</string>
+    <string name="select_song">Selecciona una canción</string>
+    <string name="unknown_artist">Artista desconocido</string>
+    <string name="play_pause">Reproducir/Pausar</string>
+    <string name="previous">Anterior</string>
+    <string name="next">Siguiente</string>
+    <string name="album_art">Portada del álbum</string>
+    <string name="play">Reproducir</string>
+    <string name="pause">Pausar</string>
+</resources>
