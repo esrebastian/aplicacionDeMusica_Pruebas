@@ -101,6 +101,7 @@ fun MusicPlayerScreen(
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = DarkGreenBg,
+            contentWindowInsets = WindowInsets.safeDrawing,
             bottomBar = {
                 Column(
                     modifier = Modifier
