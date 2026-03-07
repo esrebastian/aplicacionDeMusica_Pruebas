@@ -86,6 +86,7 @@ fun MusicPlayerScreen(
     val progress by viewModel.progress.collectAsState()
     val playlist by viewModel.playlist.collectAsState()
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
+    val favoriteIds by viewModel.favoriteIds.collectAsState()
     
     var selectedTab by rememberSaveable { mutableStateOf(BottomTab.HOME) }
     var showFullScreenPlayer by rememberSaveable { mutableStateOf(false) }
@@ -133,7 +134,8 @@ fun MusicPlayerScreen(
                             isPlaying = isPlaying,
                             progress = progress,
                             onTap = { showFullScreenPlayer = true },
-                            onPlayPauseClick = { viewModel.togglePlayPause() }
+                            onPlayPauseClick = { viewModel.togglePlayPause() },
+                            onNextClick = { viewModel.nextSong() }
                         )
                     }
                     MusicBottomNavigation(
@@ -190,6 +192,7 @@ fun MusicPlayerScreen(
                                 currentSong = currentSong,
                                 isPlaying = isPlaying,
                                 viewModel = viewModel,
+                                favoriteIds = favoriteIds,
                                 onClick = { showFullScreenPlayer = true }
                             )
                         }
@@ -239,7 +242,7 @@ fun MusicPlayerScreen(
                             SongListItem(
                                 song = song,
                                 isCurrent = currentSong?.id == song.id,
-                                isFavorite = viewModel.isFavorite(song.id),
+                                isFavorite = song.id in favoriteIds,
                                 onFavoriteClick = { viewModel.toggleFavorite(song) },
                                 onClick = { viewModel.selectSong(song) }
                             )
@@ -276,6 +279,8 @@ private fun RecentlyPlayedFullScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val favoriteIds by viewModel.favoriteIds.collectAsState()
+
     Column(
         modifier = modifier
             .background(DarkGreenBg)
@@ -302,7 +307,7 @@ private fun RecentlyPlayedFullScreen(
                 SongListItem(
                     song = song,
                     isCurrent = currentSong?.id == song.id,
-                    isFavorite = viewModel.isFavorite(song.id),
+                    isFavorite = song.id in favoriteIds,
                     onFavoriteClick = { viewModel.toggleFavorite(song) },
                     onClick = { viewModel.selectSong(song) },
                     onDeleteClick = { viewModel.deleteRecentlyPlayedSong(song.id) }
@@ -477,6 +482,7 @@ private fun NowPlayingHeroCard(
     currentSong: Song?,
     isPlaying: Boolean,
     viewModel: MusicPlayerViewModel,
+    favoriteIds: Set<String>,
     onClick: () -> Unit
 ) {
     var sliderPosition by remember { mutableFloatStateOf(0f) }
@@ -568,7 +574,7 @@ private fun NowPlayingHeroCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val isFavorite = viewModel.isFavorite(currentSong?.id)
+                    val isFavorite = currentSong?.id in favoriteIds
                     IconButton(
                         onClick = { viewModel.toggleFavorite(currentSong) },
                         modifier = Modifier.size(40.dp)
@@ -689,6 +695,7 @@ private fun LibraryScreen(
     viewModel: MusicPlayerViewModel,
     modifier: Modifier = Modifier
 ) {
+    val favoriteIds by viewModel.favoriteIds.collectAsState()
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val filteredSongs = if (searchQuery.isBlank()) {
         playlist
@@ -741,7 +748,7 @@ private fun LibraryScreen(
                 SongListItem(
                     song = song,
                     isCurrent = currentSong?.id == song.id,
-                    isFavorite = viewModel.isFavorite(song.id),
+                    isFavorite = song.id in favoriteIds,
                     onFavoriteClick = { viewModel.toggleFavorite(song) },
                     onClick = { viewModel.selectSong(song) }
                 )
@@ -998,6 +1005,7 @@ private fun NowPlayingMiniBar(
     progress: Float,
     onTap: () -> Unit,
     onPlayPauseClick: () -> Unit,
+    onNextClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -1055,6 +1063,17 @@ private fun NowPlayingMiniBar(
                     Icon(
                         if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
+                        tint = AccentGreen,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                IconButton(
+                    onClick = onNextClick,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = stringResource(R.string.next),
                         tint = AccentGreen,
                         modifier = Modifier.size(24.dp)
                     )
@@ -1182,6 +1201,7 @@ private fun NowPlayingFullScreen(
     val isPlaying by viewModel.isPlaying.collectAsState()
     val duration by viewModel.duration.collectAsState()
     val currentPosition by viewModel.currentPosition.collectAsState()
+    val favoriteIds by viewModel.favoriteIds.collectAsState()
 
     var sliderPosition by remember(currentSong?.id) { mutableFloatStateOf(0f) }
     var isUserSeeking by remember { mutableStateOf(false) }
@@ -1275,7 +1295,7 @@ private fun NowPlayingFullScreen(
                         maxLines = 1
                     )
                 }
-                val isFavorite = viewModel.isFavorite(currentSong?.id)
+                val isFavorite = currentSong?.id in favoriteIds
                 IconButton(onClick = { viewModel.toggleFavorite(currentSong) }) {
                     Icon(
                         if (isFavorite) Icons.Default.Favorite else Icons.Outlined.Favorite,

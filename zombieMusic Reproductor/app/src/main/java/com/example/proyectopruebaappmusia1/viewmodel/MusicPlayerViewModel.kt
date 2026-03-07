@@ -137,7 +137,7 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         recentlyPlayedRepo.addRecentlyPlayed(song.id)
         
         if (song.filePath.isNotEmpty()) {
-            musicService.loadSong(song.filePath)
+            musicService.loadSong(song.filePath, song.title, song.artist)
             if (autoPlay) musicService.play()
         }
     }

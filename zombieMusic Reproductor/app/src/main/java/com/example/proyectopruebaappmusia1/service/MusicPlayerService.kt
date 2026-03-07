@@ -1,10 +1,15 @@
 package com.example.proyectopruebaappmusia1.service
 
+import android.content.ComponentName
 import android.content.Context
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -17,38 +22,13 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 /**
- * Servicio de reproducción basado en ExoPlayer.
- * Soporta muchos más formatos de audio que MediaPlayer.
+ * Cliente para el MusicService. Se encarga de conectar el ViewModel con el servicio real.
  */
 class MusicPlayerService(private val context: Context) {
 
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
-
-    private val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build().apply {
-        addListener(object : Player.Listener {
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                _isPlaying.value = isPlaying
-            }
-
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                when (playbackState) {
-                    Player.STATE_READY -> {
-                        // Duración disponible
-                        _duration.value = duration.coerceAtLeast(0L)
-                    }
-                    Player.STATE_ENDED -> {
-                        _isPlaying.value = false
-                        _currentPosition.value = 0L
-                        _songCompleted.trySend(Unit)
-                    }
-                }
-            }
-
-            override fun onPlayerError(error: PlaybackException) {
-                _isPlaying.value = false
-            }
-        })
-    }
+    private var controllerFuture: ListenableFuture<MediaController>? = null
+    private var mediaController: MediaController? = null
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -59,90 +39,79 @@ class MusicPlayerService(private val context: Context) {
     private val _duration = MutableStateFlow(0L)
     val duration: StateFlow<Long> = _duration.asStateFlow()
 
-    private val _currentSongPath = MutableStateFlow("")
-    val currentSongPath: StateFlow<String> = _currentSongPath.asStateFlow()
-
     private val _songCompleted = Channel<Unit>(Channel.BUFFERED)
     val songCompleted = _songCompleted.receiveAsFlow()
 
     init {
-        // Actualizar posición de reproducción periódicamente
+        val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
+        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        controllerFuture?.addListener({
+            mediaController = controllerFuture?.get()
+            setupController()
+        }, MoreExecutors.directExecutor())
+
+        // Actualizar posición periódicamente
         scope.launch {
             while (true) {
                 delay(200)
-                if (_isPlaying.value) {
-                    _currentPosition.value = exoPlayer.currentPosition.coerceAtLeast(0L)
+                mediaController?.let { controller ->
+                    if (controller.isPlaying) {
+                        _currentPosition.value = controller.currentPosition.coerceAtLeast(0L)
+                        _duration.value = controller.duration.coerceAtLeast(0L)
+                    }
                 }
             }
         }
     }
 
-    fun loadSong(filePath: String) {
-        try {
-            val mediaItem = MediaItem.fromUri(filePath)
-            exoPlayer.setMediaItem(mediaItem)
-            exoPlayer.prepare()
-            _currentSongPath.value = filePath
-            _currentPosition.value = 0L
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    fun play() {
-        try {
-            if (exoPlayer.playbackState == Player.STATE_IDLE && _currentSongPath.value.isNotEmpty()) {
-                // Si no hay nada preparado, vuelve a preparar el último mediaItem
-                exoPlayer.setMediaItem(MediaItem.fromUri(_currentSongPath.value))
-                exoPlayer.prepare()
+    private fun setupController() {
+        mediaController?.addListener(object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                _isPlaying.value = isPlaying
             }
-            exoPlayer.playWhenReady = true
-            _isPlaying.value = true
-        } catch (e: Exception) {
-            e.printStackTrace()
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) {
+                    _songCompleted.trySend(Unit)
+                }
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                _isPlaying.value = false
+            }
+        })
+    }
+
+    fun loadSong(filePath: String, title: String, artist: String) {
+        val metadata = MediaMetadata.Builder()
+            .setTitle(title)
+            .setArtist(artist)
+            .build()
+
+        val mediaItem = MediaItem.Builder()
+            .setUri(filePath)
+            .setMediaMetadata(metadata)
+            .build()
+
+        mediaController?.let { controller ->
+            controller.setMediaItem(mediaItem)
+            controller.prepare()
         }
     }
 
-    fun pause() {
-        try {
-            exoPlayer.pause()
-            _isPlaying.value = false
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    fun stop() {
-        try {
-            exoPlayer.stop()
-            _isPlaying.value = false
-            _currentPosition.value = 0L
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    fun play() = mediaController?.play()
+    fun pause() = mediaController?.pause()
+    fun togglePlayPause() {
+        if (mediaController?.isPlaying == true) pause() else play()
     }
 
     fun seekTo(position: Long) {
-        try {
-            exoPlayer.seekTo(position.coerceAtLeast(0L))
-            _currentPosition.value = position.coerceAtLeast(0L)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    fun togglePlayPause() {
-        if (_isPlaying.value) {
-            pause()
-        } else {
-            play()
-        }
+        mediaController?.seekTo(position)
     }
 
     fun release() {
-        scope.launch {
-            exoPlayer.release()
-            _isPlaying.value = false
+        controllerFuture?.let {
+            MediaController.releaseFuture(it)
         }
     }
 }
