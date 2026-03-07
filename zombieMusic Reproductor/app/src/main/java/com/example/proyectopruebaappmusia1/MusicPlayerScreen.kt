@@ -14,11 +14,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Home
@@ -66,8 +61,15 @@ private val SecondaryText = Color(0xFF8BA08E)
 private val IconPlaceholderColor = Color(0xFF6B7E6F)
 
 private enum class BottomTab {
-    HOME, EXPLORE, LIBRARY, FAVORITES
+    HOME, EXPLORE, LIBRARY, FAVORITES, RECENTLY_PLAYED_FULL
 }
+
+private enum class FilterOption(val displayName: String) {
+    TITLE("Título"),
+    ARTIST("Artista"),
+    DURATION("Duración")
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicPlayerScreen(
@@ -89,11 +91,29 @@ fun MusicPlayerScreen(
     val currentSong by viewModel.currentSong.collectAsState()
     val progress by viewModel.progress.collectAsState()
     val playlist by viewModel.playlist.collectAsState()
+    val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
+    
     var selectedTab by rememberSaveable { mutableStateOf(BottomTab.HOME) }
     var showFullScreenPlayer by rememberSaveable { mutableStateOf(false) }
 
+    // Estados para búsqueda y filtro en Home
+    var homeSearchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedFilter by rememberSaveable { mutableStateOf(FilterOption.TITLE) }
+
+    val filteredPlaylist = remember(playlist, homeSearchQuery, selectedFilter) {
+        playlist.filter { song ->
+            song.title.contains(homeSearchQuery, ignoreCase = true) ||
+            song.artist.contains(homeSearchQuery, ignoreCase = true)
+        }.let { list ->
+            when (selectedFilter) {
+                FilterOption.TITLE -> list.sortedBy { it.title }
+                FilterOption.ARTIST -> list.sortedBy { it.artist }
+                FilterOption.DURATION -> list.sortedByDescending { it.duration }
+            }
+        }
+    }
+
     MusicPermissionLauncher {
-        // Cargar canciones reales del dispositivo una vez concedido el permiso
         viewModel.loadRealSongs(context)
     }
 
@@ -118,7 +138,7 @@ fun MusicPlayerScreen(
                         )
                     }
                     MusicBottomNavigation(
-                        selectedTab = selectedTab,
+                        selectedTab = if (selectedTab == BottomTab.RECENTLY_PLAYED_FULL) BottomTab.HOME else selectedTab,
                         onTabSelected = { selectedTab = it }
                     )
                 }
@@ -146,13 +166,24 @@ fun MusicPlayerScreen(
                             .padding(paddingValues)
                     )
                 }
+                BottomTab.RECENTLY_PLAYED_FULL -> {
+                    RecentlyPlayedFullScreen(
+                        recentlyPlayed = recentlyPlayed,
+                        currentSong = currentSong,
+                        viewModel = viewModel,
+                        onBack = { selectedTab = BottomTab.HOME },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                    )
+                }
                 else -> {
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(paddingValues),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
-                        verticalArrangement = Arrangement.spacedBy(28.dp)
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
                         item { TopHeader() }
                         item {
@@ -163,20 +194,49 @@ fun MusicPlayerScreen(
                                 onClick = { showFullScreenPlayer = true }
                             )
                         }
+                        
+                        if (recentlyPlayed.isNotEmpty()) {
+                            item {
+                                SectionHeader(
+                                    title = stringResource(R.string.recently_played),
+                                    showSeeAll = true,
+                                    onSeeAllClick = { selectedTab = BottomTab.RECENTLY_PLAYED_FULL }
+                                )
+                            }
+                            item { 
+                                RecentlyPlayedRow(
+                                    recentlyPlayed.take(10),
+                                    viewModel 
+                                ) 
+                            }
+                        }
+
+                        // MOVIDO: Playlists en tendencia ahora debajo de Recientes
                         item {
                             SectionHeader(
-                                title = stringResource(R.string.recently_played),
+                                title = stringResource(R.string.trending_playlists),
                                 showSeeAll = true
                             )
                         }
-                        item { RecentlyPlayedRow(playlist, viewModel) }
+                        item { TrendingPlaylistsColumn() }
+
+                        // SECCIÓN DE TODAS LAS CANCIONES CON BUSCADOR Y FILTRO
                         item {
-                            SectionHeader(
-                                title = stringResource(R.string.all_songs),
-                                showSeeAll = false
-                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                SectionHeader(
+                                    title = stringResource(R.string.all_songs),
+                                    showSeeAll = false
+                                )
+                                HomeSearchBarWithFilter(
+                                    searchQuery = homeSearchQuery,
+                                    onSearchQueryChange = { homeSearchQuery = it },
+                                    selectedFilter = selectedFilter,
+                                    onFilterSelected = { selectedFilter = it }
+                                )
+                            }
                         }
-                        items(playlist) { song ->
+                        
+                        items(filteredPlaylist) { song ->
                             SongListItem(
                                 song = song,
                                 isCurrent = currentSong?.id == song.id,
@@ -185,13 +245,6 @@ fun MusicPlayerScreen(
                                 onClick = { viewModel.selectSong(song) }
                             )
                         }
-                        item {
-                            SectionHeader(
-                                title = stringResource(R.string.trending_playlists),
-                                showSeeAll = true
-                            )
-                        }
-                        item { TrendingPlaylistsColumn() }
                     }
                 }
             }
@@ -211,6 +264,157 @@ fun MusicPlayerScreen(
                     viewModel = viewModel,
                     onClose = { showFullScreenPlayer = false }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentlyPlayedFullScreen(
+    recentlyPlayed: List<Song>,
+    currentSong: Song?,
+    viewModel: MusicPlayerViewModel,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .background(DarkGreenBg)
+            .padding(horizontal = 16.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
+            }
+            Text(
+                text = stringResource(R.string.recently_played),
+                color = Color.White,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            items(recentlyPlayed) { song ->
+                SongListItem(
+                    song = song,
+                    isCurrent = currentSong?.id == song.id,
+                    isFavorite = viewModel.isFavorite(song.id),
+                    onFavoriteClick = { viewModel.toggleFavorite(song) },
+                    onClick = { viewModel.selectSong(song) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeSearchBarWithFilter(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    selectedFilter: FilterOption,
+    onFilterSelected: (FilterOption) -> Unit
+) {
+    var showFilterMenu by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Surface(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            shape = RoundedCornerShape(16.dp),
+            color = CardGreenBg
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    tint = SecondaryText,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                TextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    placeholder = { 
+                        Text(
+                            text = "Buscar canciones...", 
+                            color = SecondaryText, 
+                            fontSize = 14.sp 
+                        ) 
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        cursorColor = AccentGreen,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
+                )
+            }
+        }
+
+        Box {
+            Surface(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clickable { showFilterMenu = true },
+                shape = RoundedCornerShape(16.dp),
+                color = CardGreenBg
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.FilterList,
+                        contentDescription = "Filtrar",
+                        tint = AccentGreen,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            DropdownMenu(
+                expanded = showFilterMenu,
+                onDismissRequest = { showFilterMenu = false },
+                modifier = Modifier.background(CardGreenBg)
+            ) {
+                FilterOption.values().forEach { option ->
+                    DropdownMenuItem(
+                        text = { 
+                            Text(
+                                text = option.displayName, 
+                                color = if (selectedFilter == option) AccentGreen else Color.White 
+                            ) 
+                        },
+                        onClick = {
+                            onFilterSelected(option)
+                            showFilterMenu = false
+                        },
+                        leadingIcon = {
+                            if (selectedFilter == option) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = AccentGreen)
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -250,7 +454,6 @@ private fun TopHeader() {
                 fontSize = 14.sp
             )
         }
-        SearchField(modifier = Modifier.width(140.dp))
         Spacer(modifier = Modifier.width(12.dp))
         Box(
             modifier = Modifier
@@ -264,34 +467,6 @@ private fun TopHeader() {
                 contentDescription = null,
                 tint = SecondaryText,
                 modifier = Modifier.size(22.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun SearchField(modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.height(40.dp),
-        shape = RoundedCornerShape(20.dp),
-        color = CardGreenBg,
-        tonalElevation = 2.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = stringResource(R.string.search_hint),
-                tint = SecondaryText,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = stringResource(R.string.search_hint),
-                color = SecondaryText,
-                fontSize = 14.sp
             )
         }
     }
@@ -349,7 +524,6 @@ private fun NowPlayingHeroCard(
                     fontSize = 15.sp
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                // Slider interactivo para adelantar/retroceder
                 Slider(
                     value = sliderPosition.coerceIn(0f, 1f),
                     onValueChange = { value ->
@@ -461,7 +635,11 @@ private fun NowPlayingHeroCard(
 }
 
 @Composable
-private fun SectionHeader(title: String, showSeeAll: Boolean) {
+private fun SectionHeader(
+    title: String, 
+    showSeeAll: Boolean,
+    onSeeAllClick: () -> Unit = {}
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -477,7 +655,8 @@ private fun SectionHeader(title: String, showSeeAll: Boolean) {
             Text(
                 text = stringResource(R.string.see_all),
                 color = AccentGreen,
-                fontSize = 14.sp
+                fontSize = 14.sp,
+                modifier = Modifier.clickable { onSeeAllClick() }
             )
         }
     }
@@ -485,14 +664,14 @@ private fun SectionHeader(title: String, showSeeAll: Boolean) {
 
 @Composable
 private fun RecentlyPlayedRow(
-    playlist: List<Song>,
+    recentlyPlayed: List<Song>,
     viewModel: MusicPlayerViewModel
 ) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(vertical = 4.dp)
     ) {
-        items(playlist) { song ->
+        items(recentlyPlayed) { song ->
             RecentlyPlayedItem(
                 song = song,
                 onClick = {

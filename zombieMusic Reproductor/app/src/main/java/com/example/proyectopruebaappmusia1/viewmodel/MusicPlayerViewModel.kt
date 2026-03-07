@@ -45,6 +45,9 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     private val _progress = MutableStateFlow(0f)
     val progress: StateFlow<Float> = _progress.asStateFlow()
 
+    private val _recentlyPlayed = MutableStateFlow<List<Song>>(emptyList())
+    val recentlyPlayed: StateFlow<List<Song>> = _recentlyPlayed.asStateFlow()
+
     val favoriteIds: StateFlow<Set<String>> = favoritesRepo.favoriteIds
     val favoriteSongs: StateFlow<List<Song>> = combine(playlist, favoriteIds) { list, ids ->
         list.filter { it.id in ids }
@@ -146,12 +149,26 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             _currentSongIndex.value = index
         }
         _currentSong.value = song
+        
+        // Agregar a escuchados recientemente
+        addToRecentlyPlayed(song)
+        
         if (song.filePath.isNotEmpty()) {
             musicService.loadSong(song.filePath)
             if (autoPlay) {
                 musicService.play()
             }
         }
+    }
+
+    private fun addToRecentlyPlayed(song: Song) {
+        val currentList = _recentlyPlayed.value.toMutableList()
+        // Remover si ya existe para moverlo al principio
+        currentList.removeAll { it.id == song.id }
+        // Agregar al principio
+        currentList.add(0, song)
+        // Limitar a una lista manejable (ej. las últimas 50 para el "Ver todo")
+        _recentlyPlayed.value = currentList.take(50)
     }
     
     fun play() {
