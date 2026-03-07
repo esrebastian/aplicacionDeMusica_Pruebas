@@ -2,6 +2,7 @@ package com.example.proyectopruebaappmusia1
 
 import android.app.Application
 import android.content.ContentUris
+import androidx.activity.compose.BackHandler
 import androidx.core.net.toUri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -19,15 +20,8 @@ import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -95,6 +89,11 @@ fun MusicPlayerScreen(
     
     var selectedTab by rememberSaveable { mutableStateOf(BottomTab.HOME) }
     var showFullScreenPlayer by rememberSaveable { mutableStateOf(false) }
+
+    // Manejar el botón de retroceso de Android para volver al Home si no estamos allí
+    BackHandler(enabled = selectedTab != BottomTab.HOME) {
+        selectedTab = BottomTab.HOME
+    }
 
     // Estados para búsqueda y filtro en Home
     var homeSearchQuery by rememberSaveable { mutableStateOf("") }
@@ -211,7 +210,7 @@ fun MusicPlayerScreen(
                             }
                         }
 
-                        // MOVIDO: Playlists en tendencia ahora debajo de Recientes
+                        // Playlists en tendencia debajo de Recientes
                         item {
                             SectionHeader(
                                 title = stringResource(R.string.trending_playlists),
@@ -305,7 +304,8 @@ private fun RecentlyPlayedFullScreen(
                     isCurrent = currentSong?.id == song.id,
                     isFavorite = viewModel.isFavorite(song.id),
                     onFavoriteClick = { viewModel.toggleFavorite(song) },
-                    onClick = { viewModel.selectSong(song) }
+                    onClick = { viewModel.selectSong(song) },
+                    onDeleteClick = { viewModel.deleteRecentlyPlayedSong(song.id) }
                 )
             }
         }
@@ -809,7 +809,8 @@ private fun SongListItem(
     isCurrent: Boolean,
     onClick: () -> Unit,
     isFavorite: Boolean = false,
-    onFavoriteClick: (() -> Unit)? = null
+    onFavoriteClick: (() -> Unit)? = null,
+    onDeleteClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -853,6 +854,19 @@ private fun SongListItem(
                     contentDescription = stringResource(R.string.favorite_content_description),
                     tint = if (isFavorite) AccentGreen else SecondaryText,
                     modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+        if (onDeleteClick != null) {
+            IconButton(
+                onClick = { onDeleteClick() },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Eliminar de recientes",
+                    tint = Color.Red.copy(alpha = 0.7f),
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }

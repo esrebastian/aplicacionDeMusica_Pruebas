@@ -7,32 +7,16 @@ import kotlinx.coroutines.flow.asStateFlow
 
 private const val KEY_RECENTLY_PLAYED_IDS = "recently_played_song_ids"
 private const val SEPARATOR = ","
-private const val MAX_RECENT = 10
+private const val MAX_RECENT = 50 // Aumentamos para soportar el "Ver todo"
 
 class RecentlyPlayedRepository(private val prefs: SharedPreferences) {
 
     private val _recentlyPlayedIds = MutableStateFlow(loadIds())
     val recentlyPlayedIds: StateFlow<List<String>> = _recentlyPlayedIds.asStateFlow()
 
-    fun addRecentlyPlayed(songId: String) {
-        val current = _recentlyPlayedIds.value.toMutableList()
-        // Remove if already exists to move it to the front
-        current.remove(songId)
-        current.add(0, songId)
-        
-        // Keep only the latest MAX_RECENT
-        val updated = if (current.size > MAX_RECENT) {
-            current.take(MAX_RECENT)
-        } else {
-            current
-        }
-        
-        saveIds(updated)
-        _recentlyPlayedIds.value = updated
-    }
-
     private fun loadIds(): List<String> {
-        val raw = prefs.getString(KEY_RECENTLY_PLAYED_IDS, null) ?: return emptyList()
+        val raw = prefs.getString(KEY_RECENTLY_PLAYED_IDS, "") ?: ""
+        if (raw.isBlank()) return emptyList()
         return raw.split(SEPARATOR).filter { it.isNotBlank() }
     }
 
@@ -40,6 +24,25 @@ class RecentlyPlayedRepository(private val prefs: SharedPreferences) {
         prefs.edit()
             .putString(KEY_RECENTLY_PLAYED_IDS, ids.joinToString(SEPARATOR))
             .apply()
+    }
+
+    fun addRecentlyPlayed(songId: String) {
+        val current = loadIds().toMutableList()
+        current.remove(songId)
+        current.add(0, songId)
+        
+        val updated = current.take(MAX_RECENT)
+        
+        saveIds(updated)
+        _recentlyPlayedIds.value = updated
+    }
+
+    fun removeRecentlyPlayed(songId: String) {
+        val current = loadIds().toMutableList()
+        if (current.remove(songId)) {
+            saveIds(current)
+            _recentlyPlayedIds.value = current
+        }
     }
 
     companion object {
