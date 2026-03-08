@@ -94,6 +94,19 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
                 nextSong()
             }
         }
+
+        // Escuchar eventos de salto desde la notificación
+        viewModelScope.launch {
+            musicService.skipNextEvent.collect {
+                nextSong()
+            }
+        }
+
+        viewModelScope.launch {
+            musicService.skipPreviousEvent.collect {
+                previousSong()
+            }
+        }
     }
     
     fun setSamplePlaylist() {

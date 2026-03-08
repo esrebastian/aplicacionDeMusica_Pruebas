@@ -1,7 +1,11 @@
 package com.example.proyectopruebaappmusia1.service
 
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -29,6 +33,9 @@ class MusicPlayerService(private val context: Context) {
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
+    
+    // Almacena una canción que se intentó cargar antes de que el controlador estuviera listo
+    private var pendingSong: Triple<String, String, String>? = null
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -42,6 +49,21 @@ class MusicPlayerService(private val context: Context) {
     private val _songCompleted = Channel<Unit>(Channel.BUFFERED)
     val songCompleted = _songCompleted.receiveAsFlow()
 
+    private val _skipNextEvent = Channel<Unit>(Channel.BUFFERED)
+    val skipNextEvent = _skipNextEvent.receiveAsFlow()
+
+    private val _skipPreviousEvent = Channel<Unit>(Channel.BUFFERED)
+    val skipPreviousEvent = _skipPreviousEvent.receiveAsFlow()
+
+    private val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                MusicService.ACTION_NEXT -> _skipNextEvent.trySend(Unit)
+                MusicService.ACTION_PREVIOUS -> _skipPreviousEvent.trySend(Unit)
+            }
+        }
+    }
+
     init {
         val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
         controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
@@ -49,6 +71,17 @@ class MusicPlayerService(private val context: Context) {
             mediaController = controllerFuture?.get()
             setupController()
         }, MoreExecutors.directExecutor())
+
+        // Registrar receiver para los botones de la notificación
+        val filter = IntentFilter().apply {
+            addAction(MusicService.ACTION_NEXT)
+            addAction(MusicService.ACTION_PREVIOUS)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
 
         // Actualizar posición periódicamente
         scope.launch {
@@ -65,6 +98,12 @@ class MusicPlayerService(private val context: Context) {
     }
 
     private fun setupController() {
+        // Cargar canción pendiente si existe
+        pendingSong?.let { (path, title, artist) ->
+            loadSong(path, title, artist)
+            pendingSong = null
+        }
+
         mediaController?.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 _isPlaying.value = isPlaying
@@ -83,6 +122,12 @@ class MusicPlayerService(private val context: Context) {
     }
 
     fun loadSong(filePath: String, title: String, artist: String) {
+        val controller = mediaController
+        if (controller == null) {
+            pendingSong = Triple(filePath, title, artist)
+            return
+        }
+
         val metadata = MediaMetadata.Builder()
             .setTitle(title)
             .setArtist(artist)
@@ -93,10 +138,8 @@ class MusicPlayerService(private val context: Context) {
             .setMediaMetadata(metadata)
             .build()
 
-        mediaController?.let { controller ->
-            controller.setMediaItem(mediaItem)
-            controller.prepare()
-        }
+        controller.setMediaItem(mediaItem)
+        controller.prepare()
     }
 
     fun play() = mediaController?.play()
@@ -110,6 +153,11 @@ class MusicPlayerService(private val context: Context) {
     }
 
     fun release() {
+        try {
+            context.unregisterReceiver(receiver)
+        } catch (e: Exception) {
+            // Ya desregistrado o no registrado
+        }
         controllerFuture?.let {
             MediaController.releaseFuture(it)
         }

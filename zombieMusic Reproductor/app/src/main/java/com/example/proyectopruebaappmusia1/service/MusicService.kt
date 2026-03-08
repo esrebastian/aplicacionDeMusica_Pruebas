@@ -1,5 +1,6 @@
 package com.example.proyectopruebaappmusia1.service
 
+import android.app.PendingIntent
 import android.content.Intent
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -11,12 +12,15 @@ class MusicService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private lateinit var exoPlayer: ExoPlayer
 
+    companion object {
+        const val ACTION_NEXT = "com.example.proyectopruebaappmusia1.NEXT"
+        const val ACTION_PREVIOUS = "com.example.proyectopruebaappmusia1.PREVIOUS"
+    }
+
     override fun onCreate() {
         super.onCreate()
         exoPlayer = ExoPlayer.Builder(this).build()
         
-        // El ForwardingPlayer permite indicar qué comandos están disponibles
-        // para que la notificación sepa qué botones mostrar.
         val player = object : ForwardingPlayer(exoPlayer) {
             override fun getAvailableCommands(): Player.Commands {
                 return super.getAvailableCommands().buildUpon()
@@ -25,6 +29,26 @@ class MusicService : MediaSessionService() {
                     .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
                     .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
                     .build()
+            }
+
+            override fun seekToNext() {
+                val intent = Intent(ACTION_NEXT).setPackage(packageName)
+                sendBroadcast(intent)
+            }
+
+            override fun seekToNextMediaItem() {
+                val intent = Intent(ACTION_NEXT).setPackage(packageName)
+                sendBroadcast(intent)
+            }
+
+            override fun seekToPrevious() {
+                val intent = Intent(ACTION_PREVIOUS).setPackage(packageName)
+                sendBroadcast(intent)
+            }
+
+            override fun seekToPreviousMediaItem() {
+                val intent = Intent(ACTION_PREVIOUS).setPackage(packageName)
+                sendBroadcast(intent)
             }
         }
 
