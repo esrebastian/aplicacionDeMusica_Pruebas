@@ -58,11 +58,11 @@ private val AccentGreen = Color(0xFFC1F153)
 private val SecondaryText = Color(0xFF8BA08E)
 private val IconPlaceholderColor = Color(0xFF6B7E6F)
 
-private enum class BottomTab {
+enum class BottomTab {
     HOME, EXPLORE, LIBRARY, FAVORITES, RECENTLY_PLAYED_FULL
 }
 
-private enum class FilterOption(val displayName: String) {
+enum class FilterOption(val displayName: String) {
     TITLE("Título"),
     ARTIST("Artista"),
     DURATION("Duración")
@@ -151,7 +151,9 @@ fun MusicPlayerScreen(
         ) { paddingValues ->
             when (selectedTab) {
                 BottomTab.EXPLORE -> {
-                    ExploreScreen(
+                    // LLAMADA A LA NUEVA PANTALLA
+                    pantallaDeExplorar(
+                        viewModel = viewModel,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(paddingValues)
@@ -283,104 +285,6 @@ fun MusicPlayerScreen(
 }
 
 @Composable
-private fun ExploreScreen(modifier: Modifier = Modifier) {
-    var webView: WebView? by remember { mutableStateOf(null) }
-    var currentUrl by remember { mutableStateOf("https://www.youtube.com") }
-    var canGoBack by remember { mutableStateOf(false) }
-    var canGoForward by remember { mutableStateOf(false) }
-
-    Column(modifier = modifier.background(DarkGreenBg)) {
-        // Toolbar del Navegador
-        Surface(
-            color = CardGreenBg,
-            modifier = Modifier.fillMaxWidth(),
-            tonalElevation = 4.dp
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(8.dp)
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                IconButton(
-                    onClick = { webView?.goBack() },
-                    enabled = canGoBack
-                ) {
-                    Icon(
-                        Icons.Default.ArrowBack,
-                        contentDescription = "Atrás",
-                        tint = if (canGoBack) Color.White else SecondaryText
-                    )
-                }
-                IconButton(
-                    onClick = { webView?.goForward() },
-                    enabled = canGoForward
-                ) {
-                    Icon(
-                        Icons.Default.ArrowForward,
-                        contentDescription = "Adelante",
-                        tint = if (canGoForward) Color.White else SecondaryText
-                    )
-                }
-                IconButton(onClick = { webView?.reload() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Recargar", tint = Color.White)
-                }
-                
-                Surface(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    color = DarkGreenBg
-                ) {
-                    Text(
-                        text = currentUrl,
-                        color = SecondaryText,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                    )
-                }
-            }
-        }
-
-        // El Navegador real
-        Box(modifier = Modifier.weight(1f)) {
-            AndroidView(
-                factory = { context ->
-                    WebView(context).apply {
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageFinished(view: WebView?, url: String?) {
-                                currentUrl = url ?: ""
-                                canGoBack = view?.canGoBack() ?: false
-                                canGoForward = view?.canGoForward() ?: false
-                            }
-                        }
-                        settings.javaScriptEnabled = true
-                        loadUrl(currentUrl)
-                        webView = this
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-            
-            // Botón de descarga (solo se muestra si es un vídeo de YouTube)
-            if (currentUrl.contains("youtube.com/watch")) {
-                LargeFloatingActionButton(
-                    onClick = { /* TODO: Lógica de descarga */ },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(24.dp),
-                    containerColor = AccentGreen,
-                    contentColor = DarkGreenBg
-                ) {
-                    Icon(Icons.Default.Download, contentDescription = "Descargar", modifier = Modifier.size(32.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun RecentlyPlayedFullScreen(
     recentlyPlayed: List<Song>,
     currentSong: Song?,
@@ -427,115 +331,7 @@ private fun RecentlyPlayedFullScreen(
 }
 
 @Composable
-private fun HomeSearchBarWithFilter(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    selectedFilter: FilterOption,
-    onFilterSelected: (FilterOption) -> Unit
-) {
-    var showFilterMenu by remember { mutableStateOf(false) }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(52.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Surface(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
-            shape = RoundedCornerShape(16.dp),
-            color = CardGreenBg
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
-                    tint = SecondaryText,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                TextField(
-                    value = searchQuery,
-                    onValueChange = onSearchQueryChange,
-                    placeholder = { 
-                        Text(
-                            text = "Buscar canciones...", 
-                            color = SecondaryText, 
-                            fontSize = 14.sp 
-                        ) 
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        cursorColor = AccentGreen,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    singleLine = true,
-                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
-                )
-            }
-        }
-
-        Box {
-            Surface(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clickable { showFilterMenu = true },
-                shape = RoundedCornerShape(16.dp),
-                color = CardGreenBg
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.FilterList,
-                        contentDescription = "Filtrar",
-                        tint = AccentGreen,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-
-            DropdownMenu(
-                expanded = showFilterMenu,
-                onDismissRequest = { showFilterMenu = false },
-                modifier = Modifier.background(CardGreenBg)
-            ) {
-                FilterOption.values().forEach { option ->
-                    DropdownMenuItem(
-                        text = { 
-                            Text(
-                                text = option.displayName, 
-                                color = if (selectedFilter == option) AccentGreen else Color.White 
-                            ) 
-                        },
-                        onClick = {
-                            onFilterSelected(option)
-                            showFilterMenu = false
-                        },
-                        leadingIcon = {
-                            if (selectedFilter == option) {
-                                Icon(Icons.Default.Check, contentDescription = null, tint = AccentGreen)
-                            }
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TopHeader() {
+fun TopHeader() {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -587,7 +383,7 @@ private fun TopHeader() {
 }
 
 @Composable
-private fun NowPlayingHeroCard(
+fun NowPlayingHeroCard(
     currentSong: Song?,
     isPlaying: Boolean,
     viewModel: MusicPlayerViewModel,
@@ -750,11 +546,7 @@ private fun NowPlayingHeroCard(
 }
 
 @Composable
-private fun SectionHeader(
-    title: String, 
-    showSeeAll: Boolean,
-    onSeeAllClick: () -> Unit = {}
-) {
+fun SectionHeader(title: String, showSeeAll: Boolean = true, onSeeAllClick: () -> Unit = {}) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -778,15 +570,12 @@ private fun SectionHeader(
 }
 
 @Composable
-private fun RecentlyPlayedRow(
-    recentlyPlayed: List<Song>,
-    viewModel: MusicPlayerViewModel
-) {
+fun RecentlyPlayedRow(songs: List<Song>, viewModel: MusicPlayerViewModel) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(vertical = 4.dp)
     ) {
-        items(recentlyPlayed) { song ->
+        items(songs) { song ->
             RecentlyPlayedItem(
                 song = song,
                 onClick = {
@@ -798,120 +587,76 @@ private fun RecentlyPlayedRow(
 }
 
 @Composable
-private fun LibraryScreen(
-    playlist: List<Song>,
-    currentSong: Song?,
-    viewModel: MusicPlayerViewModel,
-    modifier: Modifier = Modifier
-) {
-    val favoriteIds by viewModel.favoriteIds.collectAsState()
-    var searchQuery by rememberSaveable { mutableStateOf("") }
-    val filteredSongs = if (searchQuery.isBlank()) {
-        playlist
-    } else {
-        playlist.filter { song ->
-            song.title.contains(searchQuery, ignoreCase = true) ||
-                    song.artist.contains(searchQuery, ignoreCase = true)
-        }
-    }
-
-    Column(
-        modifier = modifier
-            .background(DarkGreenBg)
-            .padding(horizontal = 16.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.library),
-            color = Color.White,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            placeholder = {
-                Text(
-                    text = stringResource(R.string.search_hint),
-                    color = SecondaryText
-                )
-            },
-            singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = AccentGreen,
-                unfocusedBorderColor = CardGreenBg,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                cursorColor = AccentGreen
-            )
-        )
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items(filteredSongs) { song ->
-                SongListItem(
-                    song = song,
-                    isCurrent = currentSong?.id == song.id,
-                    isFavorite = song.id in favoriteIds,
-                    onFavoriteClick = { viewModel.toggleFavorite(song) },
-                    onClick = { viewModel.selectSong(song) }
-                )
-            }
-        }
+fun TrendingPlaylistsColumn() {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        TrendingPlaylistItem(stringResource(R.string.music_mix), 56)
+        TrendingPlaylistItem(stringResource(R.string.chill_beats), 36)
     }
 }
 
 @Composable
-private fun FavoritesScreen(
-    favoriteSongs: List<Song>,
-    currentSong: Song?,
-    viewModel: MusicPlayerViewModel,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .background(DarkGreenBg)
-            .padding(horizontal = 16.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+fun TrendingPlaylistItem(title: String, songCount: Int) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(84.dp)
+            .shadow(6.dp, RoundedCornerShape(20.dp)),
+        shape = RoundedCornerShape(20.dp),
+        color = CardGreenBg,
+        tonalElevation = 4.dp
     ) {
-        Text(
-            text = stringResource(R.string.favorites),
-            color = Color.White,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        if (favoriteSongs.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                AccentGreen.copy(alpha = 0.15f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = stringResource(R.string.favorites_empty),
-                    color = SecondaryText,
-                    fontSize = 15.sp,
-                    modifier = Modifier.padding(horizontal = 24.dp)
+                Image(
+                    painter = ColorPainter(Color.Gray),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
                 )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(favoriteSongs) { song ->
-                    SongListItem(
-                        song = song,
-                        isCurrent = currentSong?.id == song.id,
-                        isFavorite = true,
-                        onFavoriteClick = { viewModel.toggleFavorite(song) },
-                        onClick = { viewModel.selectSong(song) }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = stringResource(R.string.song_count_format, songCount),
+                        color = SecondaryText,
+                        fontSize = 14.sp
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(AccentGreen.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .background(AccentGreen)
                     )
                 }
             }
@@ -920,7 +665,7 @@ private fun FavoritesScreen(
 }
 
 @Composable
-private fun SongListItem(
+fun SongListItem(
     song: Song,
     isCurrent: Boolean,
     onClick: () -> Unit,
@@ -996,7 +741,7 @@ private fun SongListItem(
 }
 
 @Composable
-private fun RecentlyPlayedItem(
+fun RecentlyPlayedItem(
     song: Song,
     onClick: () -> Unit = {}
 ) {
@@ -1030,85 +775,7 @@ private fun RecentlyPlayedItem(
 }
 
 @Composable
-private fun TrendingPlaylistsColumn() {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        TrendingPlaylistItem(stringResource(R.string.music_mix), 56)
-        TrendingPlaylistItem(stringResource(R.string.chill_beats), 36)
-    }
-}
-
-@Composable
-private fun TrendingPlaylistItem(title: String, songCount: Int) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(84.dp)
-            .shadow(6.dp, RoundedCornerShape(20.dp)),
-        shape = RoundedCornerShape(20.dp),
-        color = CardGreenBg,
-        tonalElevation = 4.dp
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                AccentGreen.copy(alpha = 0.15f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Image(
-                    painter = ColorPainter(Color.Gray),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        color = Color.White,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = stringResource(R.string.song_count_format, songCount),
-                        color = SecondaryText,
-                        fontSize = 14.sp
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(AccentGreen.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .background(AccentGreen)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun NowPlayingMiniBar(
+fun NowPlayingMiniBar(
     song: Song,
     isPlaying: Boolean,
     progress: Float,
@@ -1193,7 +860,7 @@ private fun NowPlayingMiniBar(
 }
 
 @Composable
-private fun MusicBottomNavigation(
+fun MusicBottomNavigation(
     selectedTab: BottomTab,
     onTabSelected: (BottomTab) -> Unit
 ) {
@@ -1234,7 +901,7 @@ private fun MusicBottomNavigation(
 }
 
 @Composable
-private fun BottomNavItem(
+fun BottomNavItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     isSelected: Boolean,
@@ -1262,7 +929,237 @@ private fun BottomNavItem(
 }
 
 @Composable
-private fun AlbumArtImage(
+fun LibraryScreen(
+    playlist: List<Song>,
+    currentSong: Song?,
+    viewModel: MusicPlayerViewModel,
+    modifier: Modifier = Modifier
+) {
+    val favoriteIds by viewModel.favoriteIds.collectAsState()
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val filteredSongs = if (searchQuery.isBlank()) {
+        playlist
+    } else {
+        playlist.filter { song ->
+            song.title.contains(searchQuery, ignoreCase = true) ||
+                    song.artist.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .background(DarkGreenBg)
+            .padding(horizontal = 16.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.library),
+            color = Color.White,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = {
+                Text(
+                    text = stringResource(R.string.search_hint),
+                    color = SecondaryText
+                )
+            },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = AccentGreen,
+                unfocusedBorderColor = CardGreenBg,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                cursorColor = AccentGreen
+            )
+        )
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            items(filteredSongs) { song ->
+                SongListItem(
+                    song = song,
+                    isCurrent = currentSong?.id == song.id,
+                    isFavorite = song.id in favoriteIds,
+                    onFavoriteClick = { viewModel.toggleFavorite(song) },
+                    onClick = { viewModel.selectSong(song) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FavoritesScreen(
+    favoriteSongs: List<Song>,
+    currentSong: Song?,
+    viewModel: MusicPlayerViewModel,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .background(DarkGreenBg)
+            .padding(horizontal = 16.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.favorites),
+            color = Color.White,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        if (favoriteSongs.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.favorites_empty),
+                    color = SecondaryText,
+                    fontSize = 15.sp,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(favoriteSongs) { song ->
+                    SongListItem(
+                        song = song,
+                        isCurrent = currentSong?.id == song.id,
+                        isFavorite = true,
+                        onFavoriteClick = { viewModel.toggleFavorite(song) },
+                        onClick = { viewModel.selectSong(song) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HomeSearchBarWithFilter(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    selectedFilter: FilterOption,
+    onFilterSelected: (FilterOption) -> Unit
+) {
+    var showFilterMenu by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Surface(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            shape = RoundedCornerShape(16.dp),
+            color = CardGreenBg
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    tint = SecondaryText,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                TextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    placeholder = { 
+                        Text(
+                            text = "Buscar canciones...", 
+                            color = SecondaryText, 
+                            fontSize = 14.sp 
+                        ) 
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        cursorColor = AccentGreen,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
+                )
+            }
+        }
+
+        Box {
+            Surface(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clickable { showFilterMenu = true },
+                shape = RoundedCornerShape(16.dp),
+                color = CardGreenBg
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.FilterList,
+                        contentDescription = "Filtrar",
+                        tint = AccentGreen,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            DropdownMenu(
+                expanded = showFilterMenu,
+                onDismissRequest = { showFilterMenu = false },
+                modifier = Modifier.background(CardGreenBg)
+            ) {
+                FilterOption.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { 
+                            Text(
+                                text = option.displayName, 
+                                color = if (selectedFilter == option) AccentGreen else Color.White 
+                            ) 
+                        },
+                        onClick = {
+                            onFilterSelected(option)
+                            showFilterMenu = false
+                        },
+                        leadingIcon = {
+                            if (selectedFilter == option) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = AccentGreen)
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AlbumArtImage(
     albumArtId: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier
@@ -1301,7 +1198,7 @@ private fun formatTime(milliseconds: Long): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NowPlayingFullScreen(
+fun NowPlayingFullScreen(
     viewModel: MusicPlayerViewModel,
     onClose: () -> Unit,
     modifier: Modifier = Modifier

@@ -9,6 +9,7 @@ import com.example.proyectopruebaappmusia1.service.MusicPlayerService
 import com.example.proyectopruebaappmusia1.util.MusicProvider
 import com.example.proyectopruebaappmusia1.data.FavoritesRepository
 import com.example.proyectopruebaappmusia1.data.RecentlyPlayedRepository
+import com.example.proyectopruebaappmusia1.YouTubeManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -117,7 +118,7 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         )
         _playlist.value = sampleSongs
         if (sampleSongs.isNotEmpty()) {
-            _currentSong.value = sampleSongs[0]
+            selectSong(sampleSongs[0], autoPlay = false)
         }
     }
     
@@ -150,8 +151,13 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         recentlyPlayedRepo.addRecentlyPlayed(song.id)
         
         if (song.filePath.isNotEmpty()) {
-            musicService.loadSong(song.filePath, song.title, song.artist)
-            if (autoPlay) musicService.play()
+            if (autoPlay) {
+                YouTubeManager.pauseVideo() // Pausar YouTube si vamos a reproducir local
+                musicService.loadSong(song.filePath, song.title, song.artist)
+                musicService.play()
+            } else {
+                musicService.loadSong(song.filePath, song.title, song.artist)
+            }
         }
     }
 
@@ -165,7 +171,7 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         if (wasCurrent) {
             // Buscamos la nueva canción que queda de "primera" en la lista actualizada
             val nextInRecent = recentlyPlayed.value.firstOrNull()
-            
+
             if (nextInRecent != null) {
                 selectSong(nextInRecent, autoPlay = isPlaying.value)
             } else {
@@ -178,9 +184,19 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
     
-    fun play() = musicService.play()
+    fun play() {
+        YouTubeManager.pauseVideo() // Pausar YouTube antes de sonar local
+        musicService.play()
+    }
+    
     fun pause() = musicService.pause()
-    fun togglePlayPause() = musicService.togglePlayPause()
+    
+    fun togglePlayPause() {
+        if (!_isPlaying.value) {
+            YouTubeManager.pauseVideo() // Pausar YouTube si vamos a darle a Play local
+        }
+        musicService.togglePlayPause()
+    }
     
     fun nextSong() {
         val list = _playlist.value
