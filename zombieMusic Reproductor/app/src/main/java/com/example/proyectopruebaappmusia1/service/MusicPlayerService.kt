@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.os.Build
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -35,7 +36,9 @@ class MusicPlayerService(private val context: Context) {
     private var mediaController: MediaController? = null
     
     // Almacena una canción que se intentó cargar antes de que el controlador estuviera listo
-    private var pendingSong: Triple<String, String, String>? = null
+    private var pendingSong: PendingSong? = null
+
+    private data class PendingSong(val filePath: String, val title: String, val artist: String, val artworkUri: Uri?)
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -88,10 +91,9 @@ class MusicPlayerService(private val context: Context) {
             while (true) {
                 delay(200)
                 mediaController?.let { controller ->
-                    if (controller.isPlaying) {
-                        _currentPosition.value = controller.currentPosition.coerceAtLeast(0L)
-                        _duration.value = controller.duration.coerceAtLeast(0L)
-                    }
+                    _isPlaying.value = controller.isPlaying
+                    _currentPosition.value = controller.currentPosition.coerceAtLeast(0L)
+                    _duration.value = controller.duration.coerceAtLeast(0L)
                 }
             }
         }
@@ -99,38 +101,51 @@ class MusicPlayerService(private val context: Context) {
 
     private fun setupController() {
         // Cargar canción pendiente si existe
-        pendingSong?.let { (path, title, artist) ->
-            loadSong(path, title, artist)
+        pendingSong?.let { p ->
+            loadSong(p.filePath, p.title, p.artist, p.artworkUri)
             pendingSong = null
         }
 
-        mediaController?.addListener(object : Player.Listener {
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                _isPlaying.value = isPlaying
-            }
-
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) {
-                    _songCompleted.trySend(Unit)
+        mediaController?.let { controller ->
+            _isPlaying.value = controller.isPlaying
+            _currentPosition.value = controller.currentPosition.coerceAtLeast(0L)
+            _duration.value = controller.duration.coerceAtLeast(0L)
+            
+            controller.addListener(object : Player.Listener {
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    _isPlaying.value = isPlaying
                 }
-            }
 
-            override fun onPlayerError(error: PlaybackException) {
-                _isPlaying.value = false
-            }
-        })
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_ENDED) {
+                        _songCompleted.trySend(Unit)
+                    }
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    _isPlaying.value = false
+                }
+            })
+        }
     }
 
-    fun loadSong(filePath: String, title: String, artist: String) {
+    fun loadSong(filePath: String, title: String, artist: String, artworkUri: Uri? = null) {
         val controller = mediaController
         if (controller == null) {
-            pendingSong = Triple(filePath, title, artist)
+            pendingSong = PendingSong(filePath, title, artist, artworkUri)
+            return
+        }
+
+        // Verificar si la canción ya está cargada para no reiniciarla
+        val currentMediaItem = controller.currentMediaItem
+        if (currentMediaItem?.localConfiguration?.uri.toString() == filePath) {
             return
         }
 
         val metadata = MediaMetadata.Builder()
             .setTitle(title)
             .setArtist(artist)
+            .setArtworkUri(artworkUri)
             .build()
 
         val mediaItem = MediaItem.Builder()
