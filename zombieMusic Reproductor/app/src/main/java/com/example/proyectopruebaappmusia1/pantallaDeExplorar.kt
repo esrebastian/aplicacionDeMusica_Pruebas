@@ -46,9 +46,7 @@ object YouTubeManager {
                     override fun onPageFinished(view: WebView?, url: String?) {
                         injectPlaybackListener()
                     }
-                    override fun onLoadResource(view: WebView?, url: String?) {
-                        injectPlaybackListener()
-                    }
+                    // Quitamos onLoadResource para ser menos estrictos
                 }
                 addJavascriptInterface(object {
                     @JavascriptInterface
