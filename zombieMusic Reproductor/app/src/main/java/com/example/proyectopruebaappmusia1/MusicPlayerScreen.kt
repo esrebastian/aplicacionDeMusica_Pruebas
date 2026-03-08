@@ -2,6 +2,9 @@ package com.example.proyectopruebaappmusia1
 
 import android.app.Application
 import android.content.ContentUris
+import android.net.Uri
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.core.net.toUri
 import androidx.compose.foundation.Image
@@ -37,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.ViewModel
@@ -146,6 +150,13 @@ fun MusicPlayerScreen(
             }
         ) { paddingValues ->
             when (selectedTab) {
+                BottomTab.EXPLORE -> {
+                    ExploreScreen(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                    )
+                }
                 BottomTab.LIBRARY -> {
                     LibraryScreen(
                         playlist = playlist,
@@ -266,6 +277,104 @@ fun MusicPlayerScreen(
                     viewModel = viewModel,
                     onClose = { showFullScreenPlayer = false }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExploreScreen(modifier: Modifier = Modifier) {
+    var webView: WebView? by remember { mutableStateOf(null) }
+    var currentUrl by remember { mutableStateOf("https://www.youtube.com") }
+    var canGoBack by remember { mutableStateOf(false) }
+    var canGoForward by remember { mutableStateOf(false) }
+
+    Column(modifier = modifier.background(DarkGreenBg)) {
+        // Toolbar del Navegador
+        Surface(
+            color = CardGreenBg,
+            modifier = Modifier.fillMaxWidth(),
+            tonalElevation = 4.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(8.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                IconButton(
+                    onClick = { webView?.goBack() },
+                    enabled = canGoBack
+                ) {
+                    Icon(
+                        Icons.Default.ArrowBack,
+                        contentDescription = "Atrás",
+                        tint = if (canGoBack) Color.White else SecondaryText
+                    )
+                }
+                IconButton(
+                    onClick = { webView?.goForward() },
+                    enabled = canGoForward
+                ) {
+                    Icon(
+                        Icons.Default.ArrowForward,
+                        contentDescription = "Adelante",
+                        tint = if (canGoForward) Color.White else SecondaryText
+                    )
+                }
+                IconButton(onClick = { webView?.reload() }) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Recargar", tint = Color.White)
+                }
+                
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    color = DarkGreenBg
+                ) {
+                    Text(
+                        text = currentUrl,
+                        color = SecondaryText,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        }
+
+        // El Navegador real
+        Box(modifier = Modifier.weight(1f)) {
+            AndroidView(
+                factory = { context ->
+                    WebView(context).apply {
+                        webViewClient = object : WebViewClient() {
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                currentUrl = url ?: ""
+                                canGoBack = view?.canGoBack() ?: false
+                                canGoForward = view?.canGoForward() ?: false
+                            }
+                        }
+                        settings.javaScriptEnabled = true
+                        loadUrl(currentUrl)
+                        webView = this
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+            
+            // Botón de descarga (solo se muestra si es un vídeo de YouTube)
+            if (currentUrl.contains("youtube.com/watch")) {
+                LargeFloatingActionButton(
+                    onClick = { /* TODO: Lógica de descarga */ },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(24.dp),
+                    containerColor = AccentGreen,
+                    contentColor = DarkGreenBg
+                ) {
+                    Icon(Icons.Default.Download, contentDescription = "Descargar", modifier = Modifier.size(32.dp))
+                }
             }
         }
     }
