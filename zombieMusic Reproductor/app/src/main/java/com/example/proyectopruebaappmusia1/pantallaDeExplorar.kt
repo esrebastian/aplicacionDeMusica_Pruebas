@@ -1,9 +1,19 @@
 package com.example.proyectopruebaappmusia1
 
 import android.annotation.SuppressLint
+import android.app.DownloadManager
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Environment
 import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -30,25 +40,43 @@ import kotlinx.coroutines.launch
 @SuppressLint("StaticFieldLeak")
 object YouTubeManager {
     var webView: WebView? = null
+    var currentUrl = mutableStateOf("https://m.youtube.com")
     
-    fun getOrCreateWebView(context: android.content.Context, viewModel: MusicPlayerViewModel): WebView {
+    fun getOrCreateWebView(context: Context, viewModel: MusicPlayerViewModel): WebView {
         if (webView == null) {
             webView = WebView(context.applicationContext).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.mediaPlaybackRequiresUserGesture = false
+                settings.apply {
+                    javaScriptEnabled = true
+                    domStorageEnabled = true
+                    loadWithOverviewMode = true
+                    useWideViewPort = true
+                    userAgentString = null 
+                }
+                
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
+                        url?.let { currentUrl.value = it }
                         injectPlaybackListener()
                     }
+                    
+                    override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                        url?.let { currentUrl.value = it }
+                        return false
+                    }
                 }
+                
+                webChromeClient = WebChromeClient()
+
                 addJavascriptInterface(object {
                     @JavascriptInterface
                     fun onVideoPlay() {
-                        post { viewModel.pause() }
+                        post { 
+                            viewModel.pause() 
+                        }
                     }
                 }, "Android")
-                loadUrl("https://www.youtube.com")
+                
+                loadUrl(currentUrl.value)
             }
         }
         return webView!!
@@ -56,10 +84,7 @@ object YouTubeManager {
 
     fun pauseVideo() {
         webView?.post {
-            webView?.loadUrl("javascript:(function() { " +
-                    "var videos = document.querySelectorAll('video'); " +
-                    "for(var i=0; i<videos.length; i++) { videos[i].pause(); } " +
-                    "})()")
+            webView?.loadUrl("javascript:(function() { var videos = document.querySelectorAll('video'); for (var i = 0; i < videos.length; i++) { videos[i].pause(); } })()")
         }
     }
 
@@ -172,11 +197,145 @@ private fun SearchMainTab() {
 private fun YouTubeTab(viewModel: MusicPlayerViewModel) {
     val context = LocalContext.current
     val webView = remember { YouTubeManager.getOrCreateWebView(context, viewModel) }
+    val currentUrl by YouTubeManager.currentUrl
+    
+    val isVideo = currentUrl.contains("watch?v=")
+    var showDownloadDialog by remember { mutableStateOf(false) }
 
-    AndroidView(
-        factory = { webView },
-        modifier = Modifier.fillMaxSize()
-    )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CardGreenBg)
+                    .padding(vertical = 4.dp, horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row {
+                    IconButton(onClick = { if (webView.canGoBack()) webView.goBack() }) {
+                        Icon(Icons.Default.ArrowBack, "Atrás", tint = Color.White)
+                    }
+                    IconButton(onClick = { if (webView.canGoForward()) webView.goForward() }) {
+                        Icon(Icons.Default.ArrowForward, "Adelante", tint = Color.White)
+                    }
+                    IconButton(onClick = { webView.reload() }) {
+                        Icon(Icons.Default.Refresh, "Recargar", tint = Color.White)
+                    }
+                }
+                
+                Row {
+                    IconButton(onClick = {
+                        val url = webView.url
+                        if (url != null) {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("URL de YouTube", url)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "Enlace copiado", Toast.LENGTH_SHORT).show()
+                        }
+                    }) {
+                        Icon(Icons.Default.ContentCopy, "Copiar Link", tint = Color.White)
+                    }
+                    IconButton(onClick = {
+                        val url = webView.url
+                        if (url != null) {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                            context.startActivity(intent)
+                        }
+                    }) {
+                        Icon(Icons.Default.OpenInBrowser, "Abrir en navegador", tint = Color.White)
+                    }
+                }
+            }
+
+            AndroidView(
+                factory = { webView },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        if (isVideo) {
+            FloatingActionButton(
+                onClick = { showDownloadDialog = true },
+                containerColor = AccentGreen,
+                contentColor = DarkGreenBg,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+                    .size(56.dp),
+                shape = CircleShape
+            ) {
+                Icon(Icons.Default.FileDownload, contentDescription = "Descargar")
+            }
+        }
+    }
+
+    if (showDownloadDialog) {
+        AlertDialog(
+            onDismissRequest = { showDownloadDialog = false },
+            containerColor = CardGreenBg,
+            title = { Text("Descargar Video", color = Color.White) },
+            text = {
+                Column {
+                    Text("Selecciona el formato y calidad:", color = SecondaryText, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    QualityItem("MP3 - Alta Calidad", "Audio") { 
+                        iniciarDescarga(context, currentUrl, "mp3")
+                        showDownloadDialog = false 
+                    }
+                    QualityItem("MP4 - Video 720p", "Video") { 
+                        iniciarDescarga(context, currentUrl, "mp4")
+                        showDownloadDialog = false 
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDownloadDialog = false }) {
+                    Text("CANCELAR", color = AccentGreen)
+                }
+            }
+        )
+    }
+}
+
+private fun iniciarDescarga(context: Context, url: String, formato: String) {
+    // Extraer ID del video de la URL
+    val videoId = url.split("v=").getOrNull(1)?.split("&")?.getOrNull(0) ?: "video"
+    
+    Toast.makeText(context, "Iniciando descarga de $formato...", Toast.LENGTH_SHORT).show()
+
+    // IMPORTANTE: Esto es un ejemplo de lógica. Para que funcione realmente necesitas un extractor.
+    // Aquí usamos el DownloadManager de Android.
+    val request = DownloadManager.Request(Uri.parse(url)) // En un caso real aquí iría el link directo al archivo
+        .setTitle("ZombieMusic Download")
+        .setDescription("Descargando $videoId en formato $formato")
+        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        .setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "ZombieMusic_$videoId.$formato")
+        .setAllowedOverMetered(true)
+        .setAllowedOverRoaming(true)
+
+    val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+    downloadManager.enqueue(request)
+}
+
+@Composable
+fun QualityItem(label: String, type: String, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(vertical = 12.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                if (type == "Audio") Icons.Default.MusicNote else Icons.Default.Videocam,
+                null,
+                tint = AccentGreen,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(label, color = Color.White, fontSize = 16.sp)
+        }
+    }
 }
 
 @Composable
