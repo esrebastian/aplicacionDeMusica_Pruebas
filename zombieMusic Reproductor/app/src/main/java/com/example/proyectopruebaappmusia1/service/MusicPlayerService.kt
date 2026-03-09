@@ -61,8 +61,12 @@ class MusicPlayerService(private val context: Context) {
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                MusicService.ACTION_NEXT -> _skipNextEvent.trySend(Unit)
-                MusicService.ACTION_PREVIOUS -> _skipPreviousEvent.trySend(Unit)
+                MusicService.ACTION_NEXT -> {
+                    _skipNextEvent.trySend(Unit)
+                }
+                MusicService.ACTION_PREVIOUS -> {
+                    _skipPreviousEvent.trySend(Unit)
+                }
             }
         }
     }
@@ -80,8 +84,10 @@ class MusicPlayerService(private val context: Context) {
             addAction(MusicService.ACTION_NEXT)
             addAction(MusicService.ACTION_PREVIOUS)
         }
+        
+        // Usar RECEIVER_EXPORTED para permitir que el Broadcast enviado por el Servicio llegue aquí
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             context.registerReceiver(receiver, filter)
         }

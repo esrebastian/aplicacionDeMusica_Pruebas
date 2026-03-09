@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var musicViewModel: MusicPlayerViewModel
 
+    // Lanzador para permisos de archivos/audio
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -46,6 +47,11 @@ class MainActivity : ComponentActivity() {
             musicViewModel.loadRealSongs(this)
         }
     }
+
+    // Lanzador para permisos de notificación (Android 13+)
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ -> }
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,7 +69,7 @@ class MainActivity : ComponentActivity() {
                 )
                 musicViewModel = viewModel
 
-                // Verificar y pedir permisos
+                // Verificar y pedir permisos al iniciar
                 LaunchedEffect(Unit) {
                     checkAndRequestPermissions()
                 }
@@ -165,25 +171,23 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkAndRequestPermissions() {
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // Permiso de almacenamiento/audio
+        val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_AUDIO
         } else {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
 
-        when {
-            ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED -> {
-                musicViewModel.loadRealSongs(this)
-            }
-            else -> {
-                requestPermissionLauncher.launch(permission)
-            }
+        if (ContextCompat.checkSelfPermission(this, storagePermission) == PackageManager.PERMISSION_GRANTED) {
+            musicViewModel.loadRealSongs(this)
+        } else {
+            requestPermissionLauncher.launch(storagePermission)
         }
 
-        // También pedir notificaciones si es Android 13+
+        // Permiso de notificaciones
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                registerForActivityResult(ActivityResultContracts.RequestPermission()) {}.launch(Manifest.permission.POST_NOTIFICATIONS)
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
     }

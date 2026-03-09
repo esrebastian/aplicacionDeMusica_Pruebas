@@ -31,25 +31,35 @@ class MusicService : MediaSessionService() {
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
 
-        // Configuración del Reproductor Local optimizada
-        // El parámetro 'true' en setAudioAttributes ya activa la gestión automática de foco de audio
         exoPlayer = ExoPlayer.Builder(this)
             .setAudioAttributes(audioAttributes, true)
             .build()
 
+        // Creamos un ForwardingPlayer para "engañar" a la sesión y decirle que siempre puede saltar canciones
         val localForwardingPlayer = object : ForwardingPlayer(exoPlayer) {
             override fun getAvailableCommands(): Player.Commands {
                 return super.getAvailableCommands().buildUpon()
                     .add(Player.COMMAND_SEEK_TO_NEXT)
+                    .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
                     .add(Player.COMMAND_SEEK_TO_PREVIOUS)
+                    .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
                     .build()
             }
-            override fun seekToNext() { 
-                sendBroadcast(Intent(ACTION_NEXT).setPackage(packageName)) 
+
+            override fun isCommandAvailable(command: Int): Boolean {
+                return when (command) {
+                    Player.COMMAND_SEEK_TO_NEXT,
+                    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+                    Player.COMMAND_SEEK_TO_PREVIOUS,
+                    Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> true
+                    else -> super.isCommandAvailable(command)
+                }
             }
-            override fun seekToPrevious() { 
-                sendBroadcast(Intent(ACTION_PREVIOUS).setPackage(packageName)) 
-            }
+
+            override fun seekToNext() = triggerAction(ACTION_NEXT)
+            override fun seekToNextMediaItem() = triggerAction(ACTION_NEXT)
+            override fun seekToPrevious() = triggerAction(ACTION_PREVIOUS)
+            override fun seekToPreviousMediaItem() = triggerAction(ACTION_PREVIOUS)
         }
 
         val pendingIntent = PendingIntent.getActivity(
@@ -60,7 +70,32 @@ class MusicService : MediaSessionService() {
         mediaSession = MediaSession.Builder(this, localForwardingPlayer)
             .setId("LocalMusicSession")
             .setSessionActivity(pendingIntent)
+            .setCallback(object : MediaSession.Callback {
+                // Forzamos la aceptación de estos comandos desde controladores externos (como la notificación)
+                override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
+                    val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                        .build()
+                    val playerCommands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
+                        .add(Player.COMMAND_SEEK_TO_NEXT)
+                        .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                        .add(Player.COMMAND_SEEK_TO_PREVIOUS)
+                        .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                        .build()
+                    return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                        .setAvailableSessionCommands(sessionCommands)
+                        .setAvailablePlayerCommands(playerCommands)
+                        .build()
+                }
+            })
             .build()
+    }
+
+    private fun triggerAction(action: String) {
+        val intent = Intent(action).apply {
+            setPackage(packageName)
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+        }
+        sendBroadcast(intent)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
