@@ -27,11 +27,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
 import kotlinx.coroutines.launch
 
-private val DarkGreenBg = Color(0xFF0D1410)
-private val CardGreenBg = Color(0xFF1B261F)
-private val AccentGreen = Color(0xFFC1F153)
-private val SecondaryText = Color(0xFF8BA08E)
-
 @SuppressLint("StaticFieldLeak")
 object YouTubeManager {
     var webView: WebView? = null
@@ -46,7 +41,6 @@ object YouTubeManager {
                     override fun onPageFinished(view: WebView?, url: String?) {
                         injectPlaybackListener()
                     }
-                    // Quitamos onLoadResource para ser menos estrictos
                 }
                 addJavascriptInterface(object {
                     @JavascriptInterface
