@@ -121,35 +121,7 @@ fun TopHeader() {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .clip(CircleShape)
-                .background(AccentGreen.copy(alpha = 0.2f))
-        ) {
-            Image(
-                painter = painterResource(R.drawable.ic_zombie_logo),
-                contentDescription = stringResource(R.string.content_description_profile),
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(R.string.username),
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.5.sp
-            )
-            Text(
-                text = stringResource(R.string.music_subtitle),
-                color = AccentGreen,
-                fontSize = 14.sp
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
+        // Botón de Notificaciones a la izquierda
         Box(
             modifier = Modifier
                 .size(40.dp)
@@ -160,6 +132,62 @@ fun TopHeader() {
             Icon(
                 imageVector = Icons.Default.Notifications,
                 contentDescription = null,
+                tint = SecondaryText,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Contenedor central para el usuario
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(AccentGreen.copy(alpha = 0.2f))
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_zombie_logo),
+                    contentDescription = stringResource(R.string.content_description_profile),
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = stringResource(R.string.username),
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+                Text(
+                    text = stringResource(R.string.music_subtitle),
+                    color = AccentGreen,
+                    fontSize = 14.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Botón de Ajustes a la derecha
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardGreenBg)
+                .clickable { /* TODO: Pantalla de ajustes */ },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Ajustes",
                 tint = SecondaryText,
                 modifier = Modifier.size(22.dp)
             )
