@@ -1,11 +1,11 @@
 <resources>
     <!-- App -->
-    <string name="app_name">proyectoPruebaAppMusia1</string>
+    <string name="app_name">ZombieMusic</string>
     
-    <!-- User & Header -->
-    <string name="username">Usuario chido</string>
-    <string name="music_subtitle">Tu música, tu estilo</string>
-    <string name="content_description_profile">Foto de perfil</string>
+    <!-- Branding & Header -->
+    <string name="app_display_name">ZombieMusic</string>
+    <string name="app_subtitle">Tu música, tu estilo</string>
+    <string name="content_description_logo">Logo de ZombieMusic</string>
     
     <!-- Search & Navigation -->
     <string name="search_hint">Buscar...</string>

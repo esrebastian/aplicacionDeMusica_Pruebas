@@ -139,7 +139,7 @@ fun TopHeader() {
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // Contenedor central para el usuario
+        // Identidad de la App (antes Usuario)
         Row(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically
@@ -152,7 +152,7 @@ fun TopHeader() {
             ) {
                 Image(
                     painter = painterResource(R.drawable.ic_zombie_logo),
-                    contentDescription = stringResource(R.string.content_description_profile),
+                    contentDescription = stringResource(R.string.content_description_logo),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
@@ -160,14 +160,14 @@ fun TopHeader() {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = stringResource(R.string.username),
+                    text = stringResource(R.string.app_display_name),
                     color = Color.White,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.5.sp
                 )
                 Text(
-                    text = stringResource(R.string.music_subtitle),
+                    text = stringResource(R.string.app_subtitle),
                     color = AccentGreen,
                     fontSize = 14.sp
                 )
