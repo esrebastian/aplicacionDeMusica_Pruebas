@@ -142,21 +142,33 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun selectSong(song: Song, autoPlay: Boolean = true) {
-        val list = _playlist.value
-        val index = list.indexOfFirst { it.id == song.id }
+        // Incrementamos el contador y actualizamos la lista DE FORMA ATÓMICA
+        val currentList = _playlist.value
+        val updatedList = currentList.map {
+            if (it.id == song.id) it.copy(playCount = it.playCount + 1) else it
+        }
+        
+        // Buscamos la canción ya actualizada para que el estado sea consistente
+        val updatedSong = updatedList.find { it.id == song.id } ?: song
+
+        // Actualizamos primero la playlist para que los observadores vean el cambio
+        _playlist.value = updatedList
+        
+        val index = updatedList.indexOfFirst { it.id == updatedSong.id }
         if (index != -1) {
             _currentSongIndex.value = index
         }
-        _currentSong.value = song
-        recentlyPlayedRepo.addRecentlyPlayed(song.id)
         
-        if (song.filePath.isNotEmpty()) {
+        _currentSong.value = updatedSong
+        recentlyPlayedRepo.addRecentlyPlayed(updatedSong.id)
+        
+        if (updatedSong.filePath.isNotEmpty()) {
             if (autoPlay) {
-                YouTubeManager.pauseVideo() // Pausar YouTube si vamos a reproducir local
-                musicService.loadSong(song.filePath, song.title, song.artist)
+                YouTubeManager.pauseVideo()
+                musicService.loadSong(updatedSong.filePath, updatedSong.title, updatedSong.artist)
                 musicService.play()
             } else {
-                musicService.loadSong(song.filePath, song.title, song.artist)
+                musicService.loadSong(updatedSong.filePath, updatedSong.title, updatedSong.artist)
             }
         }
     }
@@ -185,7 +197,7 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     }
     
     fun play() {
-        YouTubeManager.pauseVideo() // Pausar YouTube antes de sonar local
+        YouTubeManager.pauseVideo()
         musicService.play()
     }
     
@@ -193,7 +205,7 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     
     fun togglePlayPause() {
         if (!_isPlaying.value) {
-            YouTubeManager.pauseVideo() // Pausar YouTube si vamos a darle a Play local
+            YouTubeManager.pauseVideo()
         }
         musicService.togglePlayPause()
     }

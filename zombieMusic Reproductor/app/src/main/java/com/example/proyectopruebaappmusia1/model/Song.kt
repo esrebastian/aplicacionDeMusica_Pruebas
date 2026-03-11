@@ -6,7 +6,9 @@ data class Song(
     val artist: String,
     val duration: Long, // en milisegundos
     val filePath: String,
-    val albumArt: String? = null
+    val albumArt: String? = null,
+    val playCount: Int = 0, // Contador para el filtro de "Más reproducido"
+    val lastPlayed: Long = 0 // Timestamp para el filtro de "Más recientes"
 )
 
 data class Playlist(
