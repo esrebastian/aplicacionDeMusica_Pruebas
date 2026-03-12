@@ -34,24 +34,12 @@ Funciona incluso en dispositivos modestos.
 
 ---
 
-# 📱 Vista de la aplicación
-
-*(Aquí puedes agregar capturas de pantalla de la app)*
-
-```
-screenshots/player.png
-screenshots/library.png
-screenshots/playlist.png
-```
-
----
-
 # 📥 Instalación
 
 1. Descarga el **APK** desde la sección **Releases** del repositorio.
 2. Activa **Instalar aplicaciones desconocidas** en tu dispositivo Android.
 3. Instala el archivo APK.
-4. ¡Disfruta tu música! 🎧
+4. ¡Disfruta tu música sin anuncios! 🎧
 
 ---
 
@@ -72,7 +60,7 @@ ZombieMusic nació como un proyecto independiente con el objetivo de crear un re
 
 # 🤝 Contribuciones
 
-Las contribuciones, sugerencias o mejoras son bienvenidas.
+Las contribuciones, sugerencias o mejoras son bienvenidas, la aplicacion es opensource.
 
 Si quieres ayudar:
 
@@ -91,4 +79,4 @@ Este proyecto está bajo la licencia **MIT**.
 
 # 🧟 ZombieMusic
 
-**La música nunca muere.**
+**tu musica, tu estilo.**
