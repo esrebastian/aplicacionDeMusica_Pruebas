@@ -1,0 +1,202 @@
+:root {
+    --bg-dark: #0a0f0b;
+    --bg-card: #132418;
+    --neon-green: #8CFF00;
+    --accent-blue: #63cbd1;
+    --text-gray: #aaa;
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family: 'Inter', sans-serif;
+    scroll-behavior: smooth;
+}
+
+body{
+    background: var(--bg-dark);
+    color: white;
+    line-height: 1.6;
+}
+
+h1, h2, h3, .logo span {
+    font-family: 'Orbitron', sans-serif;
+}
+
+/* NAVBAR */
+.navbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:15px 8%;
+    background: rgba(19, 36, 24, 0.95);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid #1a3a24;
+}
+
+.logo{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    font-size:22px;
+    color: var(--neon-green);
+}
+
+.logo img{ width:35px; }
+
+nav a{
+    margin-left:25px;
+    text-decoration:none;
+    color: var(--text-gray);
+    font-size: 14px;
+    transition: 0.3s;
+}
+
+nav a:hover, .nav-download {
+    color: var(--neon-green);
+}
+
+.nav-download {
+    border: 1px solid var(--neon-green);
+    padding: 8px 15px;
+    border-radius: 5px;
+}
+
+/* HERO */
+.hero{
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align:center;
+    background: radial-gradient(circle at center, #1a3a24 0%, var(--bg-dark) 70%);
+}
+
+.hero-logo{ width:160px; margin-bottom:20px; filter: drop-shadow(0 0 15px var(--neon-green)); }
+
+.hero h1{ font-size:56px; margin-bottom:20px; }
+.neon-text { color: var(--neon-green); text-shadow: 0 0 10px var(--neon-green); }
+
+.hero p{ max-width:600px; margin: 0 auto 40px; color: var(--text-gray); font-size: 18px; }
+
+.download-btn {
+    background: var(--neon-green);
+    color: black;
+    padding: 15px 35px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    margin-right: 15px;
+    transition: 0.3s;
+}
+
+.secondary-btn {
+    color: white;
+    text-decoration: none;
+    border-bottom: 1px solid var(--neon-green);
+    padding-bottom: 5px;
+}
+
+/* FEATURES */
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 30px;
+    padding: 80px 8%;
+}
+
+.feature-card {
+    background: var(--bg-card);
+    padding: 40px;
+    border-radius: 20px;
+    transition: 0.3s;
+    border: 1px solid #1a3a24;
+}
+
+.feature-card:hover {
+    transform: translateY(-10px);
+    border-color: var(--neon-green);
+}
+
+.feature-card .icon { font-size: 40px; margin-bottom: 20px; }
+.feature-card h3 { color: var(--neon-green); margin-bottom: 15px; }
+
+/* TECH STACK */
+.tech-stack {
+    text-align: center;
+    padding: 60px 8%;
+    background: #0d160f;
+}
+
+.tags {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-top: 30px;
+}
+
+.tags span {
+    background: #1a3a24;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    border: 1px solid #2d5a3a;
+}
+
+/* ROADMAP */
+.roadmap {
+    padding: 80px 8%;
+    max-width: 800px;
+    margin: auto;
+}
+
+.roadmap h2 { color: var(--neon-green); margin-bottom: 30px; text-align: center;}
+
+.roadmap ul { list-style: none; }
+.roadmap li {
+    background: #132418;
+    margin-bottom: 10px;
+    padding: 15px 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.roadmap li span { color: var(--neon-green); font-weight: bold; font-size: 20px; }
+
+footer{
+    text-align:center;
+    padding:50px;
+    color: #444;
+    border-top: 1px solid #132418;
+}
+
+/* --- RESPONSIVE DESIGN --- */
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+        gap: 15px;
+        padding: 15px 5%;
+    }
+
+    nav {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    nav a { margin-left: 0; }
+
+    .hero h1 { font-size: 42px; }
+    .hero p { font-size: 16px; }
+
+    .features-grid, .tech-stack, .roadmap {
+        padding: 60px 5%;
+    }
+}

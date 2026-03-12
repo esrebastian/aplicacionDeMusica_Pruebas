@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZombieMusic | Revive tu música</title>
+    <link rel="stylesheet" href="css/Styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="logo">
+            <img src="imagenes/logo.png" alt="ZombieMusic Logo">
+            <span>ZombieMusic</span>
+        </div>
+        <nav>
+            <a href="#features">Funciones</a>
+            <a href="#tech">Tecnología</a>
+            <a href="#roadmap">Roadmap</a>
+            <a href="descargar.html" class="nav-download">Historial de Versiones</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="hero-content">
+            <img src="imagenes/logo.png" class="hero-logo" alt="ZombieMusic">
+            <h1>Tu música <span class="neon-text">revive</span> aquí</h1>
+            <p>Gestiona tu biblioteca local y expande tus límites con integración directa de contenido externo. Una experiencia Dark moderna para Android.</p>
+            <div class="hero-btns">
+                <a href="#" class="download-btn" download>Cargando...</a>
+                <a href="#features" class="secondary-btn">Saber más</a>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="features-grid">
+        <div class="feature-card">
+            <div class="icon">📺</div>
+            <h3>Explora YouTube</h3>
+            <p>Navega y detecta contenido automáticamente. Pausa inteligente entre música local y videos.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">⚡</div>
+            <h3>Descarga Directa</h3>
+            <p>Integración con API Cobalt y DownloadManager para bajar audio y video en segundos.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">🎧</div>
+            <h3>Media3 Pro</h3>
+            <p>Reproducción en segundo plano y control total mediante notificaciones con ExoPlayer.</p>
+        </div>
+    </section>
+
+    <section id="tech" class="tech-stack">
+        <h2>Stack Tecnológico</h2>
+        <div class="tags">
+            <span>Kotlin</span>
+            <span>Jetpack Compose</span>
+            <span>Material3</span>
+            <span>MVVM</span>
+            <span>Retrofit</span>
+            <span>Coroutines</span>
+        </div>
+    </section>
+
+    <section id="roadmap" class="roadmap">
+        <h2>Próximas Implementaciones</h2>
+        <ul>
+            <li><span>+</span> Ecualizador Personalizado</li>
+            <li><span>+</span> Edición de Metadatos (ID3 Tags)</li>
+            <li><span>+</span> Sincronización de Letras</li>
+            <li><span>+</span> Gestión de Playlists Avanzada</li>
+        </ul>
+    </section>
+
+    <footer>
+        <p>&copy; <span id="year">2024</span> ZombieMusic - Desarrollado con enfoque moderno en Android.</p>
+    </footer>
+
+    <script>
+        document.getElementById('year').textContent = new Date().getFullYear();
+
+        fetch('versions.json')
+            .then(response => response.json())
+            .then(versions => {
+                if (versions.length > 0) {
+                    const latestVersion = versions[0];
+                    const downloadBtn = document.querySelector('.download-btn');
+                    downloadBtn.href = latestVersion.url;
+                    downloadBtn.textContent = `Descargar v${latestVersion.version}`;
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar el historial de versiones:', error);
+                const downloadBtn = document.querySelector('.download-btn');
+                downloadBtn.textContent = 'Error al cargar';
+                downloadBtn.style.pointerEvents = 'none';
+                downloadBtn.style.background = '#555';
+            });
+    </script>
+
+</body>
+</html>
