@@ -3,54 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZombieMusic | Historial de Versiones</title>
+    <title>Historial de Versiones - ZombieMusic</title>
     <link rel="stylesheet" href="css/Styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
-        .versions-container {
-            padding: 80px 8%;
-            max-width: 900px;
-            margin: auto;
+        body {
+            background-color: #121212;
+            color: #fff;
         }
-        .version-card {
-            background: var(--bg-card);
-            border: 1px solid #1a3a24;
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
+        .navbar {
+            justify-content: space-between;
+            padding: 1rem 2rem;
+            background-color: #1a1a1a;
+        }
+        .container {
+            padding: 2rem;
+            max-width: 800px;
+            margin: 2rem auto;
+            background-color: #1a1a1a;
+            border-radius: 8px;
+        }
+        h1 {
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+            color: #00ff00;
+            margin-bottom: 2rem;
+        }
+        .version {
+            border-bottom: 1px solid #333;
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .version:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
         }
         .version-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 1rem;
         }
-        .version-header h2 {
-            color: var(--neon-green);
+        .version-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
         }
-        .version-header span {
-            color: var(--text-gray);
-            font-size: 14px;
+        .version-date {
+            font-size: 0.9rem;
+            color: #aaa;
         }
-        .version-changelog ul {
-            list-style-type: '✓';
-            margin-left: 20px;
-            color: var(--text-gray);
+        .changelog {
+            list-style: none;
+            padding-left: 0;
         }
-        .version-changelog li {
-            margin-bottom: 8px;
-            padding-left: 10px;
+        .changelog li {
+            margin-bottom: 0.5rem;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+        .changelog li::before {
+            content: '+';
+            position: absolute;
+            left: 0;
+            color: #00ff00;
         }
         .download-link {
             display: inline-block;
-            margin-top: 20px;
-            background: var(--neon-green);
-            color: black;
-            padding: 10px 25px;
-            border-radius: 5px;
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #00ff00;
+            color: #121212;
             text-decoration: none;
+            border-radius: 5px;
             font-weight: bold;
-            transition: 0.3s;
+            transition: background-color 0.3s;
+        }
+        .download-link:hover {
+            background-color: #00cc00;
         }
     </style>
 </head>
@@ -58,7 +87,7 @@
 
     <header class="navbar">
         <div class="logo">
-            <a href="index.html" style="display: flex; align-items: center; text-decoration: none; color: var(--neon-green);">
+            <a href="index.html" style="text-decoration: none; color: inherit; display: flex; align-items: center;">
                 <img src="imagenes/logo.png" alt="ZombieMusic Logo">
                 <span>ZombieMusic</span>
             </a>
@@ -67,53 +96,50 @@
             <a href="index.html#features">Funciones</a>
             <a href="index.html#tech">Tecnología</a>
             <a href="index.html#roadmap">Roadmap</a>
-            <a href="descargar.html" class="nav-download">Historial de Versiones</a>
         </nav>
     </header>
 
-    <main class="versions-container" id="version-list">
-        <h1 style="text-align: center; margin-bottom: 50px; font-family: 'Orbitron', sans-serif;">Historial de Versiones</h1>
-        <!-- Las versiones se cargarán aquí dinámicamente -->
-    </main>
-
-    <footer>
-        <p>&copy; <span id="year">2024</span> ZombieMusic - Desarrollado con enfoque moderno en Android.</p>
-    </footer>
+    <div class="container">
+        <h1>Historial de Versiones</h1>
+        <div id="version-history">
+            <!-- Las versiones se cargarán aquí dinámicamente -->
+        </div>
+    </div>
 
     <script>
-        document.getElementById('year').textContent = new Date().getFullYear();
-
         fetch('versions.json')
             .then(response => response.json())
             .then(versions => {
-                const versionListContainer = document.getElementById('version-list');
+                const historyContainer = document.getElementById('version-history');
                 if (versions.length > 0) {
                     versions.forEach(version => {
-                        const changelogItems = version.changelog.map(item => `<li>${item}</li>`).join('');
-                        const versionCard = `
-                            <div class="version-card">
-                                <div class="version-header">
-                                    <h2>Versión ${version.version}</h2>
-                                    <span>${version.date}</span>
-                                </div>
-                                <div class="version-changelog">
-                                    <p>Cambios:</p>
-                                    <ul>
-                                        ${changelogItems}
-                                    </ul>
-                                </div>
-                                <a href="${version.url}" class="download-link" download>Descargar APK</a>
+                        const versionElement = document.createElement('div');
+                        versionElement.className = 'version';
+
+                        let changelogItems = '';
+                        version.changelog.forEach(item => {
+                            changelogItems += `<li>${item}</li>`;
+                        });
+
+                        versionElement.innerHTML = `
+                            <div class="version-header">
+                                <h2 class="version-title">Versión ${version.version}</h2>
+                                <span class="version-date">${version.date}</span>
                             </div>
+                            <ul class="changelog">
+                                ${changelogItems}
+                            </ul>
+                            <a href="${version.url}" class="download-link" download>Descargar</a>
                         `;
-                        versionListContainer.innerHTML += versionCard;
+                        historyContainer.appendChild(versionElement);
                     });
                 } else {
-                    versionListContainer.innerHTML = '<p style="text-align: center;">No se encontraron versiones.</p>';
+                    historyContainer.innerHTML = '<p>No hay versiones disponibles.</p>';
                 }
             })
             .catch(error => {
                 console.error('Error al cargar el historial de versiones:', error);
-                document.getElementById('version-list').innerHTML = '<p style="text-align: center;">No se pudo cargar el historial de versiones.</p>';
+                document.getElementById('version-history').innerHTML = '<p>Error al cargar el historial de versiones.</p>';
             });
     </script>
 

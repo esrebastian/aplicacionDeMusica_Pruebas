@@ -18,7 +18,7 @@
             <a href="#features">Funciones</a>
             <a href="#tech">Tecnología</a>
             <a href="#roadmap">Roadmap</a>
-            <a href="descargar.html" class="nav-download">Historial de Versiones</a>
+            <a href="#" class="nav-download">Descargar APK</a>
         </nav>
     </header>
 
@@ -28,7 +28,7 @@
             <h1>Tu música <span class="neon-text">revive</span> aquí</h1>
             <p>Gestiona tu biblioteca local y expande tus límites con integración directa de contenido externo. Una experiencia Dark moderna para Android.</p>
             <div class="hero-btns">
-                <a href="#" class="download-btn" download>Cargando...</a>
+                <a href="#" class="download-btn">Descargar v1.0</a>
                 <a href="#features" class="secondary-btn">Saber más</a>
             </div>
         </div>
@@ -75,30 +75,8 @@
     </section>
 
     <footer>
-        <p>&copy; <span id="year">2024</span> ZombieMusic - Desarrollado con enfoque moderno en Android.</p>
+        <p>© 2026 ZombieMusic - Desarrollado con enfoque moderno en Android.</p>
     </footer>
-
-    <script>
-        document.getElementById('year').textContent = new Date().getFullYear();
-
-        fetch('versions.json')
-            .then(response => response.json())
-            .then(versions => {
-                if (versions.length > 0) {
-                    const latestVersion = versions[0];
-                    const downloadBtn = document.querySelector('.download-btn');
-                    downloadBtn.href = latestVersion.url;
-                    downloadBtn.textContent = `Descargar v${latestVersion.version}`;
-                }
-            })
-            .catch(error => {
-                console.error('Error al cargar el historial de versiones:', error);
-                const downloadBtn = document.querySelector('.download-btn');
-                downloadBtn.textContent = 'Error al cargar';
-                downloadBtn.style.pointerEvents = 'none';
-                downloadBtn.style.background = '#555';
-            });
-    </script>
 
 </body>
 </html>
