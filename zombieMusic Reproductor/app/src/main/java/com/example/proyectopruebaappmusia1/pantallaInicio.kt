@@ -103,14 +103,23 @@ fun pantallaInicio(
             }
         }
         
-        items(filteredPlaylist) { song ->
-            SongListItem(
-                song = song,
-                isCurrent = currentSong?.id == song.id,
-                isFavorite = song.id in favoriteIds,
-                onFavoriteClick = { viewModel.toggleFavorite(song) },
-                onClick = { viewModel.selectSong(song) }
-            )
+        // Espacio reservado para el futuro (Placeholder)
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(CardGreenBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Image,
+                    contentDescription = null,
+                    tint = SecondaryText.copy(alpha = 0.2f),
+                    modifier = Modifier.size(48.dp)
+                )
+            }
         }
     }
 }

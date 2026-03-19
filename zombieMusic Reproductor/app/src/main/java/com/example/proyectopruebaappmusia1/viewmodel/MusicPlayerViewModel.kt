@@ -9,7 +9,7 @@ import com.example.proyectopruebaappmusia1.service.MusicPlayerService
 import com.example.proyectopruebaappmusia1.util.MusicProvider
 import com.example.proyectopruebaappmusia1.data.FavoritesRepository
 import com.example.proyectopruebaappmusia1.data.RecentlyPlayedRepository
-import com.example.proyectopruebaappmusia1.YouTubeManager
+import com.example.proyectopruebaappmusia1.WebBrowserManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -164,7 +164,7 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         
         if (updatedSong.filePath.isNotEmpty()) {
             if (autoPlay) {
-                YouTubeManager.pauseVideo()
+                WebBrowserManager.pauseVideo()
                 musicService.loadSong(updatedSong.filePath, updatedSong.title, updatedSong.artist)
                 musicService.play()
             } else {
@@ -197,7 +197,7 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     }
     
     fun play() {
-        YouTubeManager.pauseVideo()
+        WebBrowserManager.pauseVideo()
         musicService.play()
     }
     
@@ -205,7 +205,7 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     
     fun togglePlayPause() {
         if (!_isPlaying.value) {
-            YouTubeManager.pauseVideo()
+            WebBrowserManager.pauseVideo()
         }
         musicService.togglePlayPause()
     }
