@@ -3,6 +3,8 @@ package com.example.proyectopruebaappmusia1
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,9 +20,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.proyectopruebaappmusia1.model.Song
 import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
+import com.example.proyectopruebaappmusia1.viewmodel.RepeatMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,9 +39,15 @@ fun NowPlayingFullScreen(
     val duration by viewModel.duration.collectAsState()
     val currentPosition by viewModel.currentPosition.collectAsState()
     val favoriteIds by viewModel.favoriteIds.collectAsState()
+    val isShuffleEnabled by viewModel.isShuffleEnabled.collectAsState()
+    val repeatMode by viewModel.repeatMode.collectAsState()
+    val playlist by viewModel.playlist.collectAsState()
 
     var sliderPosition by remember(currentSong?.id) { mutableFloatStateOf(0f) }
     var isUserSeeking by remember { mutableStateOf(false) }
+    
+    var showQueueSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(currentPosition, duration, isUserSeeking) {
         if (!isUserSeeking && duration > 0) {
@@ -170,6 +181,16 @@ fun NowPlayingFullScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Botón de Lista
+                    IconButton(onClick = { /* TODO: Mostrar Lista */ }) {
+                        Icon(
+                            imageVector = Icons.Default.QueueMusic,
+                            contentDescription = "Lista",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
                     IconButton(onClick = { viewModel.previousSong() }) {
                         Icon(Icons.Default.SkipPrevious, contentDescription = stringResource(R.string.previous), tint = Color.White, modifier = Modifier.size(48.dp))
                     }
@@ -193,8 +214,225 @@ fun NowPlayingFullScreen(
                     IconButton(onClick = { viewModel.nextSong() }) {
                         Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.next), tint = Color.White, modifier = Modifier.size(48.dp))
                     }
+
+                    // Botón Aleatorio que abre la Fila
+                    IconButton(onClick = { showQueueSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Shuffle,
+                            contentDescription = "Fila",
+                            tint = if (isShuffleEnabled) AccentGreen else Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+
+        // VENTANA DE FILA (QUEUE)
+        if (showQueueSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showQueueSheet = false },
+                sheetState = sheetState,
+                containerColor = DarkGreenBg,
+                dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray.copy(alpha = 0.5f)) }
+            ) {
+                QueueSheetContent(
+                    viewModel = viewModel,
+                    currentSong = currentSong,
+                    isPlaying = isPlaying,
+                    playlist = playlist,
+                    isShuffleEnabled = isShuffleEnabled,
+                    repeatMode = repeatMode,
+                    progress = if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun QueueSheetContent(
+    viewModel: MusicPlayerViewModel,
+    currentSong: Song?,
+    isPlaying: Boolean,
+    playlist: List<Song>,
+    isShuffleEnabled: Boolean,
+    repeatMode: RepeatMode,
+    progress: Float
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxHeight(0.9f)
+            .padding(horizontal = 20.dp)
+    ) {
+        // Cabecera Persistente (Canción Actual)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AlbumArtImage(
+                albumArtId = currentSong?.albumArt,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(8.dp))
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = currentSong?.title ?: "Sin título",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = currentSong?.artist ?: "Desconocido",
+                    color = SecondaryText,
+                    fontSize = 13.sp,
+                    maxLines = 1
+                )
+            }
+            IconButton(onClick = { viewModel.togglePlayPause() }) {
+                Icon(
+                    if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    null,
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+        
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth().height(2.dp),
+            color = AccentGreen,
+            trackColor = Color.White.copy(alpha = 0.1f)
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Título "Fila" sin los iconos decorativos
+        Text(
+            text = "Fila",
+            color = Color.White,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(playlist) { song ->
+                val isSelected = song.id == currentSong?.id
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { viewModel.selectSong(song) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.size(56.dp)) {
+                        AlbumArtImage(
+                            albumArtId = song.albumArt,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(8.dp))
+                        )
+                        if (isSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.4f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.BarChart, null, tint = AccentGreen, modifier = Modifier.size(32.dp))
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = song.title,
+                            color = if (isSelected) AccentGreen else Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = song.artist,
+                            color = SecondaryText,
+                            fontSize = 13.sp,
+                            maxLines = 1
+                        )
+                    }
+                    Icon(Icons.Default.DragHandle, null, tint = SecondaryText, modifier = Modifier.size(24.dp))
+                }
+            }
+        }
+
+        // BARRA DE CONTROLES INFERIOR
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            val buttonColor = Color.White.copy(alpha = 0.1f)
+            
+            // Botón Repetir
+            Surface(
+                modifier = Modifier.weight(1f).height(48.dp).clickable { viewModel.toggleRepeatMode() },
+                color = if (repeatMode != RepeatMode.NONE) AccentGreen.copy(alpha = 0.2f) else buttonColor,
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = when(repeatMode) {
+                            RepeatMode.ONE -> Icons.Default.RepeatOne
+                            else -> Icons.Default.Repeat
+                        },
+                        null,
+                        tint = if (repeatMode != RepeatMode.NONE) AccentGreen else Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
+            // Botón Central (Modo)
+            Surface(
+                modifier = Modifier.weight(1.5f).height(48.dp),
+                color = Color(0xFF89B4FF).copy(alpha = 0.2f),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Sync, null, tint = Color(0xFF89B4FF), modifier = Modifier.size(22.dp))
+                }
+            }
+
+            // Botón Aleatorio
+            Surface(
+                modifier = Modifier.weight(1f).height(48.dp).clickable { viewModel.toggleShuffle() },
+                color = if (isShuffleEnabled) AccentGreen.copy(alpha = 0.2f) else buttonColor,
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Shuffle,
+                        null,
+                        tint = if (isShuffleEnabled) AccentGreen else Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
     }

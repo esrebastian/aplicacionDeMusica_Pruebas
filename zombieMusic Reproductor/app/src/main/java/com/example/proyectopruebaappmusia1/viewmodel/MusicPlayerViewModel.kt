@@ -19,6 +19,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+enum class RepeatMode {
+    NONE, ONE, ALL
+}
+
 class MusicPlayerViewModel(application: Application) : AndroidViewModel(application) {
     private val context = getApplication<Application>().applicationContext
     private val musicService = MusicPlayerService(context)
@@ -43,12 +47,20 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     
     private val _playlist = MutableStateFlow<List<Song>>(emptyList())
     val playlist: StateFlow<List<Song>> = _playlist.asStateFlow()
+
+    private val _originalPlaylist = MutableStateFlow<List<Song>>(emptyList())
     
     private val _currentSongIndex = MutableStateFlow(0)
     val currentSongIndex: StateFlow<Int> = _currentSongIndex.asStateFlow()
     
     private val _progress = MutableStateFlow(0f)
     val progress: StateFlow<Float> = _progress.asStateFlow()
+
+    private val _isShuffleEnabled = MutableStateFlow(false)
+    val isShuffleEnabled: StateFlow<Boolean> = _isShuffleEnabled.asStateFlow()
+
+    private val _repeatMode = MutableStateFlow(RepeatMode.ALL)
+    val repeatMode: StateFlow<RepeatMode> = _repeatMode.asStateFlow()
 
     val recentlyPlayed: StateFlow<List<Song>> = combine(playlist, recentlyPlayedRepo.recentlyPlayedIds) { list, ids ->
         ids.mapNotNull { id -> list.find { it.id == id } }
@@ -92,11 +104,10 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
 
         viewModelScope.launch {
             musicService.songCompleted.collect {
-                nextSong()
+                handleSongCompletion()
             }
         }
 
-        // Escuchar eventos de salto desde la notificación
         viewModelScope.launch {
             musicService.skipNextEvent.collect {
                 nextSong()
@@ -109,6 +120,27 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             }
         }
     }
+
+    private fun handleSongCompletion() {
+        when (_repeatMode.value) {
+            RepeatMode.ONE -> {
+                _currentSong.value?.let { selectSong(it) }
+            }
+            RepeatMode.ALL -> {
+                nextSong()
+            }
+            RepeatMode.NONE -> {
+                val list = _playlist.value
+                val currentIndex = _currentSongIndex.value
+                if (currentIndex < list.size - 1) {
+                    nextSong()
+                } else {
+                    pause()
+                    seekTo(0f)
+                }
+            }
+        }
+    }
     
     fun setSamplePlaylist() {
         val sampleSongs = listOf(
@@ -116,6 +148,7 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             Song(id = "sample_2", title = "Vibes Nostálgicas", artist = "Green Beats", duration = 210000, filePath = ""),
             Song(id = "sample_3", title = "Mood Oscuro", artist = "Emerald Skull", duration = 180000, filePath = "")
         )
+        _originalPlaylist.value = sampleSongs
         _playlist.value = sampleSongs
         if (sampleSongs.isNotEmpty()) {
             selectSong(sampleSongs[0], autoPlay = false)
@@ -126,14 +159,16 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             val realSongs = MusicProvider.getSongsFromDevice(context)
             if (realSongs.isNotEmpty()) {
-                _playlist.value = realSongs
+                _originalPlaylist.value = realSongs
+                _playlist.value = if (_isShuffleEnabled.value) realSongs.shuffled() else realSongs
+                
                 val lastPlayedId = recentlyPlayedRepo.recentlyPlayedIds.value.firstOrNull()
-                val lastPlayedSong = realSongs.find { it.id == lastPlayedId }
+                val lastPlayedSong = _playlist.value.find { it.id == lastPlayedId }
                 
                 if (lastPlayedSong != null) {
                     selectSong(lastPlayedSong, autoPlay = false)
                 } else {
-                    selectSong(realSongs[0], autoPlay = false)
+                    selectSong(_playlist.value[0], autoPlay = false)
                 }
             } else {
                 setSamplePlaylist()
@@ -142,16 +177,12 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun selectSong(song: Song, autoPlay: Boolean = true) {
-        // Incrementamos el contador y actualizamos la lista DE FORMA ATÓMICA
         val currentList = _playlist.value
         val updatedList = currentList.map {
             if (it.id == song.id) it.copy(playCount = it.playCount + 1) else it
         }
         
-        // Buscamos la canción ya actualizada para que el estado sea consistente
         val updatedSong = updatedList.find { it.id == song.id } ?: song
-
-        // Actualizamos primero la playlist para que los observadores vean el cambio
         _playlist.value = updatedList
         
         val index = updatedList.indexOfFirst { it.id == updatedSong.id }
@@ -173,21 +204,43 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    /**
-     * Elimina una canción de Recientes y aplica la lógica de salto inteligente.
-     */
+    fun toggleShuffle() {
+        val currentShuffle = !_isShuffleEnabled.value
+        _isShuffleEnabled.value = currentShuffle
+        
+        val currentSong = _currentSong.value
+        if (currentShuffle) {
+            _playlist.value = _playlist.value.shuffled().toMutableList().apply {
+                currentSong?.let {
+                    remove(it)
+                    add(0, it)
+                }
+            }
+        } else {
+            _playlist.value = _originalPlaylist.value
+        }
+        
+        // Actualizar el índice después de mezclar
+        _currentSongIndex.value = _playlist.value.indexOfFirst { it.id == currentSong?.id }.coerceAtLeast(0)
+    }
+
+    fun toggleRepeatMode() {
+        _repeatMode.value = when (_repeatMode.value) {
+            RepeatMode.NONE -> RepeatMode.ALL
+            RepeatMode.ALL -> RepeatMode.ONE
+            RepeatMode.ONE -> RepeatMode.NONE
+        }
+    }
+
     fun deleteRecentlyPlayedSong(songId: String) {
         val wasCurrent = _currentSong.value?.id == songId
         recentlyPlayedRepo.removeRecentlyPlayed(songId)
 
         if (wasCurrent) {
-            // Buscamos la nueva canción que queda de "primera" en la lista actualizada
             val nextInRecent = recentlyPlayed.value.firstOrNull()
-
             if (nextInRecent != null) {
                 selectSong(nextInRecent, autoPlay = isPlaying.value)
             } else {
-                // Si no quedan más en recientes, saltamos a la cola normal (primera canción de la playlist)
                 val firstInPlaylist = _playlist.value.firstOrNull()
                 if (firstInPlaylist != null) {
                     selectSong(firstInPlaylist, autoPlay = isPlaying.value)
@@ -213,12 +266,20 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     fun nextSong() {
         val list = _playlist.value
         val currentIndex = _currentSongIndex.value
-        if (currentIndex < list.size - 1) selectSong(list[currentIndex + 1])
+        if (currentIndex < list.size - 1) {
+            selectSong(list[currentIndex + 1])
+        } else if (_repeatMode.value == RepeatMode.ALL && list.isNotEmpty()) {
+            selectSong(list[0])
+        }
     }
     
     fun previousSong() {
         val currentIndex = _currentSongIndex.value
-        if (currentIndex > 0) selectSong(_playlist.value[currentIndex - 1])
+        if (currentIndex > 0) {
+            selectSong(_playlist.value[currentIndex - 1])
+        } else if (_repeatMode.value == RepeatMode.ALL && _playlist.value.isNotEmpty()) {
+            selectSong(_playlist.value.last())
+        }
     }
     
     fun seekTo(position: Float) {
