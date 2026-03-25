@@ -15,7 +15,8 @@ object MusicProvider {
             MediaStore.Audio.Media.TITLE,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.ALBUM_ID
+            MediaStore.Audio.Media.ALBUM_ID,
+            MediaStore.Audio.Media.DATE_ADDED
         )
         
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
@@ -35,6 +36,7 @@ object MusicProvider {
             val artistColumn = it.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
             val durationColumn = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val albumIdColumn = it.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+            val dateAddedColumn = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
             
             while (it.moveToNext()) {
                 val mediaId = it.getLong(idColumn)
@@ -43,7 +45,8 @@ object MusicProvider {
                 val artist = it.getString(artistColumn) ?: "Artista Desconocido"
                 val duration = it.getLong(durationColumn)
                 val albumId = it.getLong(albumIdColumn)
-                // Usar content URI (compatible Android 10+ scoped storage)
+                val dateAdded = it.getLong(dateAddedColumn)
+                
                 val contentUri: Uri = ContentUris.withAppendedId(
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                     mediaId
@@ -57,7 +60,8 @@ object MusicProvider {
                         artist = artist,
                         duration = duration,
                         filePath = filePath,
-                        albumArt = albumId.toString()
+                        albumArt = albumId.toString(),
+                        dateAdded = dateAdded
                     )
                 )
             }
@@ -67,6 +71,7 @@ object MusicProvider {
     }
     
     fun getSampleSongs(): List<Song> {
+        val now = System.currentTimeMillis() / 1000
         return listOf(
             Song(
                 id = "sample_1",
@@ -74,7 +79,8 @@ object MusicProvider {
                 artist = "Artista Principal",
                 duration = 174000,
                 filePath = "",
-                albumArt = null
+                albumArt = null,
+                dateAdded = now
             ),
             Song(
                 id = "sample_2",
@@ -82,7 +88,8 @@ object MusicProvider {
                 artist = "Green Beats",
                 duration = 210000,
                 filePath = "",
-                albumArt = null
+                albumArt = null,
+                dateAdded = now - 86400
             ),
             Song(
                 id = "sample_3",
@@ -90,7 +97,8 @@ object MusicProvider {
                 artist = "Emerald Skull",
                 duration = 180000,
                 filePath = "",
-                albumArt = null
+                albumArt = null,
+                dateAdded = now - 172800
             )
         )
     }

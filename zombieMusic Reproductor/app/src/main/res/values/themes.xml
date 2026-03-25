@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.ProyectoPruebaAppMusia1" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.ProyectoPruebaAppMusia1" parent="android:Theme.Material.NoActionBar">
+        <!-- El color que se ve justo al abrir la app (Splash/Fondo inicial) -->
+        <item name="android:windowBackground">@color/dark_green_bg</item>
+
+        <!-- Status bar (Barra de arriba) con el mismo verde oscuro -->
+        <item name="android:statusBarColor">@color/dark_green_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
 </resources>

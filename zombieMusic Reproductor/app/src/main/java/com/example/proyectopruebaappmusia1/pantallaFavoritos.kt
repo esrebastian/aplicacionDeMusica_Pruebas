@@ -26,6 +26,7 @@ fun pantallaFavoritos(
     favoriteSongs: List<Song>,
     currentSong: Song?,
     viewModel: MusicPlayerViewModel,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -51,7 +52,7 @@ fun pantallaFavoritos(
                     .size(40.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(CardGreenBg)
-                    .clickable { /* TODO: Pantalla de ajustes */ },
+                    .clickable { onSettingsClick() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

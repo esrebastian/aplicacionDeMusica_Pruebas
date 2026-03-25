@@ -8,7 +8,8 @@ data class Song(
     val filePath: String,
     val albumArt: String? = null,
     val playCount: Int = 0, // Contador para el filtro de "Más reproducido"
-    val lastPlayed: Long = 0 // Timestamp para el filtro de "Más recientes"
+    val lastPlayed: Long = 0, // Timestamp para la última vez reproducida
+    val dateAdded: Long = 0 // Timestamp de cuando se añadió al dispositivo (Download date)
 )
 
 data class Playlist(

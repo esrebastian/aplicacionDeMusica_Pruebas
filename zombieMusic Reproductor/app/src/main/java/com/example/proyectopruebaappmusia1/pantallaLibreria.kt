@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,6 +31,7 @@ fun pantallaLibreria(
     playlist: List<Song>,
     currentSong: Song?,
     viewModel: MusicPlayerViewModel,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val favoriteIds by viewModel.favoriteIds.collectAsState()
@@ -68,7 +70,7 @@ fun pantallaLibreria(
             "De la A a la Z" -> baseList.sortedBy { it.title }
             "Artista" -> baseList.sortedBy { it.artist }
             "Duración más larga" -> baseList.sortedByDescending { it.duration }
-            "Más recientes" -> baseList.sortedByDescending { it.lastPlayed }
+            "Más recientes" -> baseList.sortedByDescending { it.dateAdded } // CORRECCIÓN: Usar dateAdded (fecha de descarga)
             else -> baseList 
         }
     }
@@ -79,6 +81,7 @@ fun pantallaLibreria(
             .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Cabecera con título y botón de ajustes
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -87,7 +90,7 @@ fun pantallaLibreria(
             Text(
                 text = stringResource(R.string.library),
                 color = Color.White,
-                fontSize = 22.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold
             )
 
@@ -96,58 +99,88 @@ fun pantallaLibreria(
                     .size(40.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(CardGreenBg)
-                    .clickable { /* TODO: Pantalla de ajustes */ },
+                    .clickable { onSettingsClick() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "Ajustes",
                     tint = SecondaryText,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
 
+        // Barra de búsqueda y botón de filtro estilizados
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = {
-                    Text(
-                        text = stringResource(R.string.search_hint),
-                        color = SecondaryText
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                shape = RoundedCornerShape(12.dp),
+                color = CardGreenBg
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = SecondaryText,
+                        modifier = Modifier.size(20.dp)
                     )
-                },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = AccentGreen,
-                    unfocusedBorderColor = CardGreenBg,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = AccentGreen
-                )
-            )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = {
+                            Text(
+                                text = stringResource(R.string.search_hint),
+                                color = SecondaryText,
+                                fontSize = 14.sp
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            cursorColor = AccentGreen,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        singleLine = true,
+                        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
+                    )
+                }
+            }
 
             Box {
-                Box(
+                Surface(
                     modifier = Modifier
                         .size(52.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(CardGreenBg)
                         .clickable { showFilterMenu = true },
-                    contentAlignment = Alignment.Center
+                    shape = RoundedCornerShape(12.dp),
+                    color = CardGreenBg
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.FilterList,
-                        contentDescription = "Filtrar",
-                        tint = AccentGreen,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.FilterList,
+                            contentDescription = "Filtrar",
+                            tint = AccentGreen,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
 
                 DropdownMenu(
@@ -183,7 +216,7 @@ fun pantallaLibreria(
         }
 
         LazyColumn(
-            state = listState, // Vinculamos el estado del scroll
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {

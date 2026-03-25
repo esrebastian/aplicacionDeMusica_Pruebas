@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -261,6 +262,9 @@ fun QueueSheetContent(
     repeatMode: RepeatMode,
     progress: Float
 ) {
+    var showSleepTimerDialog by remember { mutableStateOf(false) }
+    val sleepTimerRemaining by viewModel.sleepTimerRemaining.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxHeight(0.9f)
@@ -316,7 +320,7 @@ fun QueueSheetContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Título "Fila" sin los iconos decorativos
+        // Título "Fila"
         Text(
             text = "Fila",
             color = Color.White,
@@ -408,14 +412,35 @@ fun QueueSheetContent(
                 }
             }
 
-            // Botón Central (Modo)
+            // Botón Central (Temporizador de Apagado)
             Surface(
-                modifier = Modifier.weight(1.5f).height(48.dp),
-                color = Color(0xFF89B4FF).copy(alpha = 0.2f),
+                modifier = Modifier
+                    .weight(1.5f)
+                    .height(48.dp)
+                    .clickable { showSleepTimerDialog = true },
+                color = if (sleepTimerRemaining != null) Color(0xFF89B4FF).copy(alpha = 0.4f) else Color(0xFF89B4FF).copy(alpha = 0.2f),
                 shape = RoundedCornerShape(24.dp)
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Sync, null, tint = Color(0xFF89B4FF), modifier = Modifier.size(22.dp))
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Sync, 
+                        contentDescription = "Temporizador",
+                        tint = if (sleepTimerRemaining != null) Color.White else Color(0xFF89B4FF), 
+                        modifier = Modifier.size(22.dp)
+                    )
+                    if (sleepTimerRemaining != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = formatTimer(sleepTimerRemaining ?: 0L),
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
@@ -436,4 +461,69 @@ fun QueueSheetContent(
             }
         }
     }
+
+    if (showSleepTimerDialog) {
+        SleepTimerDialog(
+            onDismiss = { showSleepTimerDialog = false },
+            onSelectTime = { minutes ->
+                viewModel.setSleepTimer(minutes)
+                showSleepTimerDialog = false
+            },
+            currentTimer = sleepTimerRemaining
+        )
+    }
+}
+
+@Composable
+fun SleepTimerDialog(
+    onDismiss: () -> Unit,
+    onSelectTime: (Int) -> Unit,
+    currentTimer: Long?
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = CardGreenBg,
+        title = {
+            Text(
+                "Temporizador de apagado",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val options = listOf(
+                    0 to "Desactivado",
+                    5 to "5 minutos",
+                    15 to "15 minutos",
+                    30 to "30 minutos",
+                    60 to "60 minutos"
+                )
+                options.forEach { (mins, label) ->
+                    Text(
+                        text = label,
+                        color = if (mins == 0 && currentTimer == null) AccentGreen else Color.White,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectTime(mins) }
+                            .padding(vertical = 12.dp, horizontal = 4.dp),
+                        fontSize = 16.sp
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar", color = AccentGreen)
+            }
+        }
+    )
+}
+
+fun formatTimer(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
 }

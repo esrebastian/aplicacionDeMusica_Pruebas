@@ -7,4 +7,8 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- ZombieMusic Colors -->
+    <color name="dark_green_bg">#0D1410</color>
+    <color name="accent_green">#C1F153</color>
 </resources>

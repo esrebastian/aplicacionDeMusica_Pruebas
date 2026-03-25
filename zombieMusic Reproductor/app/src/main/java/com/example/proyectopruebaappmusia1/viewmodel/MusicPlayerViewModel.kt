@@ -10,6 +10,7 @@ import com.example.proyectopruebaappmusia1.util.MusicProvider
 import com.example.proyectopruebaappmusia1.data.FavoritesRepository
 import com.example.proyectopruebaappmusia1.data.RecentlyPlayedRepository
 import com.example.proyectopruebaappmusia1.WebBrowserManager
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -61,6 +62,11 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _repeatMode = MutableStateFlow(RepeatMode.ALL)
     val repeatMode: StateFlow<RepeatMode> = _repeatMode.asStateFlow()
+
+    // Temporizador de apagado (Sleep Timer)
+    private val _sleepTimerRemaining = MutableStateFlow<Long?>(null)
+    val sleepTimerRemaining: StateFlow<Long?> = _sleepTimerRemaining.asStateFlow()
+    private var sleepTimerJob: Job? = null
 
     val recentlyPlayed: StateFlow<List<Song>> = combine(playlist, recentlyPlayedRepo.recentlyPlayedIds) { list, ids ->
         ids.mapNotNull { id -> list.find { it.id == id } }
@@ -230,6 +236,33 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             RepeatMode.ALL -> RepeatMode.ONE
             RepeatMode.ONE -> RepeatMode.NONE
         }
+    }
+
+    fun setSleepTimer(minutes: Int) {
+        sleepTimerJob?.cancel()
+        if (minutes == 0) {
+            _sleepTimerRemaining.value = null
+            return
+        }
+        
+        val durationMillis = minutes * 60 * 1000L
+        _sleepTimerRemaining.value = durationMillis
+        
+        sleepTimerJob = viewModelScope.launch {
+            var remaining = durationMillis
+            while (remaining > 0) {
+                delay(1000)
+                remaining -= 1000
+                _sleepTimerRemaining.value = remaining
+            }
+            pause()
+            _sleepTimerRemaining.value = null
+        }
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        _sleepTimerRemaining.value = null
     }
 
     fun deleteRecentlyPlayedSong(songId: String) {

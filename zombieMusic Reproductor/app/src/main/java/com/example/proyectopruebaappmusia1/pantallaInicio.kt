@@ -44,6 +44,7 @@ fun pantallaInicio(
     onFilterSelected: (FilterOption) -> Unit,
     onHeroClick: () -> Unit,
     onSeeAllRecentlyPlayed: () -> Unit,
+    onSettingsClick: () -> Unit,
     paddingValues: PaddingValues
 ) {
     LazyColumn(
@@ -53,7 +54,7 @@ fun pantallaInicio(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        item { TopHeader() }
+        item { TopHeader(onSettingsClick = onSettingsClick) }
         item {
             NowPlayingHeroCard(
                 currentSong = currentSong,
@@ -125,7 +126,7 @@ fun pantallaInicio(
 }
 
 @Composable
-fun TopHeader() {
+fun TopHeader(onSettingsClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -191,7 +192,7 @@ fun TopHeader() {
                 .size(40.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(CardGreenBg)
-                .clickable { /* TODO: Pantalla de ajustes */ },
+                .clickable { onSettingsClick() },
             contentAlignment = Alignment.Center
         ) {
             Icon(

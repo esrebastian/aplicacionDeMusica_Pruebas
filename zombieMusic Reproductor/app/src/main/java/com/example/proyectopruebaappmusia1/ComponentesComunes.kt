@@ -34,7 +34,7 @@ val IconPlaceholderColor = Color(0xFF6B7E6F)
 
 // Enums compartidos para navegación y filtros
 enum class BottomTab {
-    HOME, EXPLORE, LIBRARY, FAVORITES, RECENTLY_PLAYED_FULL
+    HOME, EXPLORE, LIBRARY, FAVORITES, RECENTLY_PLAYED_FULL, SETTINGS
 }
 
 enum class FilterOption(val displayName: String) {

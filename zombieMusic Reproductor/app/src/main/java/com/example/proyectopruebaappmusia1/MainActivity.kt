@@ -82,10 +82,15 @@ class MainActivity : ComponentActivity() {
                 val favoriteIds by viewModel.favoriteIds.collectAsState()
                 
                 var selectedTab by rememberSaveable { mutableStateOf(BottomTab.HOME) }
+                var previousTab by rememberSaveable { mutableStateOf(BottomTab.HOME) }
                 var showFullScreenPlayer by rememberSaveable { mutableStateOf(false) }
 
                 BackHandler(enabled = selectedTab != BottomTab.HOME) {
-                    selectedTab = BottomTab.HOME
+                    if (selectedTab == BottomTab.SETTINGS) {
+                        selectedTab = previousTab
+                    } else {
+                        selectedTab = BottomTab.HOME
+                    }
                 }
 
                 // Estados de búsqueda y filtro para el Home
@@ -110,32 +115,59 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         containerColor = DarkGreenBg,
                         bottomBar = {
-                            Column(modifier = Modifier.background(DarkGreenBg).navigationBarsPadding()) {
-                                currentSong?.let { song: Song ->
-                                    NowPlayingMiniBar(
-                                        song = song,
-                                        isPlaying = isPlaying,
-                                        progress = progress,
-                                        onTap = { showFullScreenPlayer = true },
-                                        onPlayPauseClick = { viewModel.togglePlayPause() },
-                                        onNextClick = { viewModel.nextSong() }
+                            if (selectedTab != BottomTab.SETTINGS) {
+                                Column(modifier = Modifier.background(DarkGreenBg).navigationBarsPadding()) {
+                                    currentSong?.let { song: Song ->
+                                        NowPlayingMiniBar(
+                                            song = song,
+                                            isPlaying = isPlaying,
+                                            progress = progress,
+                                            onTap = { showFullScreenPlayer = true },
+                                            onPlayPauseClick = { viewModel.togglePlayPause() },
+                                            onNextClick = { viewModel.nextSong() }
+                                        )
+                                    }
+                                    MusicBottomNavigation(
+                                        selectedTab = if (selectedTab == BottomTab.RECENTLY_PLAYED_FULL) BottomTab.HOME else selectedTab,
+                                        onTabSelected = { 
+                                            previousTab = selectedTab
+                                            selectedTab = it 
+                                        }
                                     )
                                 }
-                                MusicBottomNavigation(
-                                    selectedTab = if (selectedTab == BottomTab.RECENTLY_PLAYED_FULL) BottomTab.HOME else selectedTab,
-                                    onTabSelected = { selectedTab = it }
-                                )
                             }
                         }
                     ) { paddingValues ->
                         when (selectedTab) {
                             BottomTab.EXPLORE -> pantallaDeExplorar(viewModel = viewModel, modifier = Modifier.fillMaxSize().padding(paddingValues))
-                            BottomTab.LIBRARY -> pantallaLibreria(playlist = playlist, currentSong = currentSong, viewModel = viewModel, modifier = Modifier.fillMaxSize().padding(paddingValues))
+                            BottomTab.LIBRARY -> pantallaLibreria(
+                                playlist = playlist,
+                                currentSong = currentSong,
+                                viewModel = viewModel,
+                                onSettingsClick = { 
+                                    previousTab = selectedTab
+                                    selectedTab = BottomTab.SETTINGS 
+                                },
+                                modifier = Modifier.fillMaxSize().padding(paddingValues)
+                            )
                             BottomTab.FAVORITES -> {
                                 val favoriteSongs by viewModel.favoriteSongs.collectAsState()
-                                pantallaFavoritos(favoriteSongs = favoriteSongs, currentSong = currentSong, viewModel = viewModel, modifier = Modifier.fillMaxSize().padding(paddingValues))
+                                pantallaFavoritos(
+                                    favoriteSongs = favoriteSongs,
+                                    currentSong = currentSong,
+                                    viewModel = viewModel,
+                                    onSettingsClick = { 
+                                        previousTab = selectedTab
+                                        selectedTab = BottomTab.SETTINGS 
+                                    },
+                                    modifier = Modifier.fillMaxSize().padding(paddingValues)
+                                )
                             }
                             BottomTab.RECENTLY_PLAYED_FULL -> RecentlyPlayedFullScreen(recentlyPlayed = recentlyPlayed, currentSong = currentSong, viewModel = viewModel, onBack = { selectedTab = BottomTab.HOME }, modifier = Modifier.fillMaxSize().padding(paddingValues))
+                            BottomTab.SETTINGS -> pantallaAjustes(
+                                onBack = { selectedTab = previousTab }, 
+                                modifier = Modifier.fillMaxSize().padding(paddingValues)
+                            )
                             else -> pantallaInicio(
                                 viewModel = viewModel,
                                 currentSong = currentSong,
@@ -149,6 +181,10 @@ class MainActivity : ComponentActivity() {
                                 onFilterSelected = { selectedFilter = it },
                                 onHeroClick = { showFullScreenPlayer = true },
                                 onSeeAllRecentlyPlayed = { selectedTab = BottomTab.RECENTLY_PLAYED_FULL },
+                                onSettingsClick = { 
+                                    previousTab = selectedTab
+                                    selectedTab = BottomTab.SETTINGS 
+                                },
                                 paddingValues = paddingValues
                             )
                         }
