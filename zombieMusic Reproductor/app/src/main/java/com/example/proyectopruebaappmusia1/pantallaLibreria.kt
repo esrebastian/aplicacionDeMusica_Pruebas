@@ -35,6 +35,8 @@ fun pantallaLibreria(
     modifier: Modifier = Modifier
 ) {
     val favoriteIds by viewModel.favoriteIds.collectAsState()
+    val selectedFilter by viewModel.libraryFilter.collectAsState()
+    
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showFilterMenu by remember { mutableStateOf(false) }
     
@@ -45,7 +47,6 @@ fun pantallaLibreria(
         "Artista",
         "Duración más larga"
     )
-    var selectedFilter by rememberSaveable { mutableStateOf(filterOptions[1]) }
 
     // Estado del scroll para poder resetearlo
     val listState = rememberLazyListState()
@@ -55,23 +56,15 @@ fun pantallaLibreria(
         listState.scrollToItem(0)
     }
 
-    val filteredSongs: List<Song> = remember(playlist, searchQuery, selectedFilter) {
-        val baseList: List<Song> = if (searchQuery.isBlank()) {
+    // Filtrar solo por búsqueda, ya que el ViewModel nos da la lista ya ordenada por el filtro seleccionado
+    val filteredSongs: List<Song> = remember(playlist, searchQuery) {
+        if (searchQuery.isBlank()) {
             playlist
         } else {
             playlist.filter { song: Song ->
                 song.title.contains(searchQuery, ignoreCase = true) ||
                         song.artist.contains(searchQuery, ignoreCase = true)
             }
-        }
-        
-        when (selectedFilter) {
-            "Más reproducido" -> baseList.sortedByDescending { it.playCount }
-            "De la A a la Z" -> baseList.sortedBy { it.title }
-            "Artista" -> baseList.sortedBy { it.artist }
-            "Duración más larga" -> baseList.sortedByDescending { it.duration }
-            "Más recientes" -> baseList.sortedByDescending { it.dateAdded } // CORRECCIÓN: Usar dateAdded (fecha de descarga)
-            else -> baseList 
         }
     }
 
@@ -197,7 +190,7 @@ fun pantallaLibreria(
                                 ) 
                             },
                             onClick = {
-                                selectedFilter = option
+                                viewModel.setLibraryFilter(option)
                                 showFilterMenu = false
                             },
                             leadingIcon = {
@@ -226,7 +219,7 @@ fun pantallaLibreria(
                     isCurrent = currentSong?.id == song.id,
                     isFavorite = song.id in favoriteIds,
                     onFavoriteClick = { viewModel.toggleFavorite(song) },
-                    onClick = { viewModel.selectSong(song) }
+                    onClick = { viewModel.selectSong(song, fromUserTap = true) }
                 )
             }
         }

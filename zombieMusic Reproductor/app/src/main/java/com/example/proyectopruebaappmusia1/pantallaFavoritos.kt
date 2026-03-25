@@ -89,7 +89,7 @@ fun pantallaFavoritos(
                         isCurrent = currentSong?.id == song.id,
                         isFavorite = true,
                         onFavoriteClick = { viewModel.toggleFavorite(song) },
-                        onClick = { viewModel.selectSong(song) }
+                        onClick = { viewModel.selectSong(song, fromUserTap = true) }
                     )
                 }
             }

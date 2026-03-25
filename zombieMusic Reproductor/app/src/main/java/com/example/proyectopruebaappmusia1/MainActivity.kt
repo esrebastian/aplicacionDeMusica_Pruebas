@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity() {
                 val currentSong by viewModel.currentSong.collectAsState()
                 val progress by viewModel.progress.collectAsState()
                 val playlist by viewModel.playlist.collectAsState()
+                val librarySongs by viewModel.librarySongs.collectAsState()
                 val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
                 val favoriteIds by viewModel.favoriteIds.collectAsState()
                 
@@ -141,7 +142,7 @@ class MainActivity : ComponentActivity() {
                         when (selectedTab) {
                             BottomTab.EXPLORE -> pantallaDeExplorar(viewModel = viewModel, modifier = Modifier.fillMaxSize().padding(paddingValues))
                             BottomTab.LIBRARY -> pantallaLibreria(
-                                playlist = playlist,
+                                playlist = librarySongs,
                                 currentSong = currentSong,
                                 viewModel = viewModel,
                                 onSettingsClick = { 

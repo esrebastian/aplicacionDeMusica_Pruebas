@@ -47,6 +47,10 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     private val _playlist = MutableStateFlow<List<Song>>(emptyList())
     val playlist: StateFlow<List<Song>> = _playlist.asStateFlow()
 
+    // Nueva lista específica para mostrar en la biblioteca (sin aleatorio)
+    private val _librarySongs = MutableStateFlow<List<Song>>(emptyList())
+    val librarySongs: StateFlow<List<Song>> = _librarySongs.asStateFlow()
+
     private val _originalPlaylist = MutableStateFlow<List<Song>>(emptyList())
     
     private val _currentSongIndex = MutableStateFlow(0)
@@ -64,6 +68,10 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     // Filtro de duración mínima (Predeterminado: 40 segundos)
     private val _minDurationFilter = MutableStateFlow(prefs.getInt("min_duration_seconds", 40))
     val minDurationFilter: StateFlow<Int> = _minDurationFilter.asStateFlow()
+
+    // Filtro de la librería persistente
+    private val _libraryFilter = MutableStateFlow(prefs.getString("library_filter", "De la A a la Z") ?: "De la A a la Z")
+    val libraryFilter: StateFlow<String> = _libraryFilter.asStateFlow()
 
     // Temporizador de apagado (Sleep Timer)
     private val _sleepTimerRemaining = MutableStateFlow<Long?>(null)
@@ -190,23 +198,56 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         applyFilters()
     }
 
+    fun setLibraryFilter(filter: String) {
+        _libraryFilter.value = filter
+        prefs.edit().putString("library_filter", filter).apply()
+        applyFilters()
+    }
+
     private fun applyFilters() {
         val minMillis = _minDurationFilter.value * 1000L
-        val filtered = _originalPlaylist.value.filter { it.duration >= minMillis }
+        var filtered = _originalPlaylist.value.filter { it.duration >= minMillis }
+        
+        // Aplicar orden según el filtro seleccionado
+        filtered = when (_libraryFilter.value) {
+            "Más reproducido" -> filtered.sortedByDescending { it.playCount }
+            "De la A a la Z" -> filtered.sortedBy { it.title }
+            "Artista" -> filtered.sortedBy { it.artist }
+            "Duración más larga" -> filtered.sortedByDescending { it.duration }
+            "Más recientes" -> filtered.sortedByDescending { it.dateAdded }
+            else -> filtered
+        }
+
+        // Actualizamos la lista de la biblioteca (siempre ordenada por filtro, nunca mezclada)
+        _librarySongs.value = filtered
+
+        // Actualizamos la cola de reproducción (que sí puede estar mezclada)
         _playlist.value = if (_isShuffleEnabled.value) filtered.shuffled() else filtered
         
-        // Si la canción actual ya no está en la lista filtrada, paramos la música o buscamos otra
+        // Actualizar el índice de la canción actual en la nueva lista
         val current = _currentSong.value
-        if (current != null && !_playlist.value.any { it.id == current.id }) {
-            pause()
-            _currentSong.value = null
-            if (_playlist.value.isNotEmpty()) {
-                selectSong(_playlist.value[0], autoPlay = false)
+        if (current != null) {
+            val newIndex = _playlist.value.indexOfFirst { it.id == current.id }
+            if (newIndex != -1) {
+                _currentSongIndex.value = newIndex
+            } else {
+                // Si la canción actual ya no está en la lista filtrada, paramos la música
+                pause()
+                _currentSong.value = null
+                if (_playlist.value.isNotEmpty()) {
+                    selectSong(_playlist.value[0], autoPlay = false)
+                }
             }
         }
     }
 
-    fun selectSong(song: Song, autoPlay: Boolean = true) {
+    fun selectSong(song: Song, autoPlay: Boolean = true, fromUserTap: Boolean = false) {
+        // Si el usuario elige una canción manualmente y el aleatorio está puesto, lo quitamos
+        if (fromUserTap && _isShuffleEnabled.value) {
+            _isShuffleEnabled.value = false
+            applyFilters()
+        }
+
         val currentList = _playlist.value
         val updatedList = currentList.map {
             if (it.id == song.id) it.copy(playCount = it.playCount + 1) else it
@@ -214,6 +255,11 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         
         val updatedSong = updatedList.find { it.id == song.id } ?: song
         _playlist.value = updatedList
+        
+        // Actualizar también la lista de la biblioteca para reflejar el cambio de playCount
+        _librarySongs.value = _librarySongs.value.map {
+            if (it.id == song.id) it.copy(playCount = it.playCount + 1) else it
+        }
         
         val index = updatedList.indexOfFirst { it.id == updatedSong.id }
         if (index != -1) {
@@ -247,9 +293,8 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
                 }
             }
         } else {
-            // Cuando quitamos el aleatorio, volvemos al orden original pero manteniendo el filtro
-            val minMillis = _minDurationFilter.value * 1000L
-            _playlist.value = _originalPlaylist.value.filter { it.duration >= minMillis }
+            // Cuando quitamos el aleatorio, volvemos al orden que dicta el filtro
+            applyFilters()
         }
         
         // Actualizar el índice después de mezclar

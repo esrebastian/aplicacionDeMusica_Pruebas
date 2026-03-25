@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -264,6 +265,35 @@ fun QueueSheetContent(
 ) {
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     val sleepTimerRemaining by viewModel.sleepTimerRemaining.collectAsState()
+    
+    // Estado para controlar el scroll de la fila
+    val listState = rememberLazyListState()
+    
+    // Controladores para el scroll inteligente
+    var isFirstRun by remember { mutableStateOf(true) }
+    var ignoreNextShuffleScroll by remember { mutableStateOf(false) }
+
+    // Scroll inicial al abrir la fila
+    LaunchedEffect(Unit) {
+        if (isFirstRun) {
+            val index = playlist.indexOfFirst { it.id == currentSong?.id }
+            if (index >= 0) {
+                listState.scrollToItem(index)
+            }
+            isFirstRun = false
+        }
+    }
+
+    // Scroll cuando cambia el estado del aleatorio (tanto activar como desactivar)
+    LaunchedEffect(isShuffleEnabled) {
+        if (!isFirstRun && !ignoreNextShuffleScroll) {
+            val index = playlist.indexOfFirst { it.id == currentSong?.id }
+            if (index >= 0) {
+                listState.scrollToItem(index)
+            }
+        }
+        ignoreNextShuffleScroll = false // Resetear la bandera
+    }
 
     Column(
         modifier = Modifier
@@ -331,6 +361,7 @@ fun QueueSheetContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn(
+            state = listState,
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -339,7 +370,10 @@ fun QueueSheetContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { viewModel.selectSong(song) }
+                        .clickable { 
+                            ignoreNextShuffleScroll = true
+                            viewModel.selectSong(song, fromUserTap = true) 
+                        }
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

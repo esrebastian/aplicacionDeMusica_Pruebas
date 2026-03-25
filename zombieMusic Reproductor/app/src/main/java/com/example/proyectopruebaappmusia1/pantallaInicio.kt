@@ -402,7 +402,7 @@ fun RecentlyPlayedRow(songs: List<Song>, viewModel: MusicPlayerViewModel) {
             RecentlyPlayedItem(
                 song = song,
                 onClick = {
-                    viewModel.selectSong(song)
+                    viewModel.selectSong(song, fromUserTap = true)
                 }
             )
         }
