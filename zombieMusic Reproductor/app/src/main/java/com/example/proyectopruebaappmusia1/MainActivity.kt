@@ -165,6 +165,7 @@ class MainActivity : ComponentActivity() {
                             }
                             BottomTab.RECENTLY_PLAYED_FULL -> RecentlyPlayedFullScreen(recentlyPlayed = recentlyPlayed, currentSong = currentSong, viewModel = viewModel, onBack = { selectedTab = BottomTab.HOME }, modifier = Modifier.fillMaxSize().padding(paddingValues))
                             BottomTab.SETTINGS -> pantallaAjustes(
+                                viewModel = viewModel,
                                 onBack = { selectedTab = previousTab }, 
                                 modifier = Modifier.fillMaxSize().padding(paddingValues)
                             )

@@ -27,12 +27,10 @@ enum class RepeatMode {
 class MusicPlayerViewModel(application: Application) : AndroidViewModel(application) {
     private val context = getApplication<Application>().applicationContext
     private val musicService = MusicPlayerService(context)
-    private val favoritesRepo = FavoritesRepository.create(
-        context.getSharedPreferences("music_prefs", Context.MODE_PRIVATE)
-    )
-    private val recentlyPlayedRepo = RecentlyPlayedRepository.create(
-        context.getSharedPreferences("music_prefs", Context.MODE_PRIVATE)
-    )
+    private val prefs = context.getSharedPreferences("music_prefs", Context.MODE_PRIVATE)
+    
+    private val favoritesRepo = FavoritesRepository.create(prefs)
+    private val recentlyPlayedRepo = RecentlyPlayedRepository.create(prefs)
     
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -62,6 +60,10 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _repeatMode = MutableStateFlow(RepeatMode.ALL)
     val repeatMode: StateFlow<RepeatMode> = _repeatMode.asStateFlow()
+
+    // Filtro de duración mínima (Predeterminado: 40 segundos)
+    private val _minDurationFilter = MutableStateFlow(prefs.getInt("min_duration_seconds", 40))
+    val minDurationFilter: StateFlow<Int> = _minDurationFilter.asStateFlow()
 
     // Temporizador de apagado (Sleep Timer)
     private val _sleepTimerRemaining = MutableStateFlow<Long?>(null)
@@ -155,9 +157,9 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             Song(id = "sample_3", title = "Mood Oscuro", artist = "Emerald Skull", duration = 180000, filePath = "")
         )
         _originalPlaylist.value = sampleSongs
-        _playlist.value = sampleSongs
-        if (sampleSongs.isNotEmpty()) {
-            selectSong(sampleSongs[0], autoPlay = false)
+        applyFilters()
+        if (_playlist.value.isNotEmpty()) {
+            selectSong(_playlist.value[0], autoPlay = false)
         }
     }
     
@@ -166,18 +168,40 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             val realSongs = MusicProvider.getSongsFromDevice(context)
             if (realSongs.isNotEmpty()) {
                 _originalPlaylist.value = realSongs
-                _playlist.value = if (_isShuffleEnabled.value) realSongs.shuffled() else realSongs
+                applyFilters()
                 
                 val lastPlayedId = recentlyPlayedRepo.recentlyPlayedIds.value.firstOrNull()
                 val lastPlayedSong = _playlist.value.find { it.id == lastPlayedId }
                 
                 if (lastPlayedSong != null) {
                     selectSong(lastPlayedSong, autoPlay = false)
-                } else {
+                } else if (_playlist.value.isNotEmpty()) {
                     selectSong(_playlist.value[0], autoPlay = false)
                 }
             } else {
                 setSamplePlaylist()
+            }
+        }
+    }
+
+    fun setMinDurationFilter(seconds: Int) {
+        _minDurationFilter.value = seconds
+        prefs.edit().putInt("min_duration_seconds", seconds).apply()
+        applyFilters()
+    }
+
+    private fun applyFilters() {
+        val minMillis = _minDurationFilter.value * 1000L
+        val filtered = _originalPlaylist.value.filter { it.duration >= minMillis }
+        _playlist.value = if (_isShuffleEnabled.value) filtered.shuffled() else filtered
+        
+        // Si la canción actual ya no está en la lista filtrada, paramos la música o buscamos otra
+        val current = _currentSong.value
+        if (current != null && !_playlist.value.any { it.id == current.id }) {
+            pause()
+            _currentSong.value = null
+            if (_playlist.value.isNotEmpty()) {
+                selectSong(_playlist.value[0], autoPlay = false)
             }
         }
     }
@@ -223,7 +247,9 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
                 }
             }
         } else {
-            _playlist.value = _originalPlaylist.value
+            // Cuando quitamos el aleatorio, volvemos al orden original pero manteniendo el filtro
+            val minMillis = _minDurationFilter.value * 1000L
+            _playlist.value = _originalPlaylist.value.filter { it.duration >= minMillis }
         }
         
         // Actualizar el índice después de mezclar

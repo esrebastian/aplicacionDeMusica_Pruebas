@@ -182,11 +182,11 @@ fun NowPlayingFullScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Botón de Lista
-                    IconButton(onClick = { /* TODO: Mostrar Lista */ }) {
+                    // Botón de Letras (Sin funcionalidad aún)
+                    IconButton(onClick = { /* TODO: Mostrar Letras */ }) {
                         Icon(
-                            imageVector = Icons.Default.QueueMusic,
-                            contentDescription = "Lista",
+                            imageVector = Icons.Default.Lyrics,
+                            contentDescription = "Letras",
                             tint = Color.White,
                             modifier = Modifier.size(28.dp)
                         )
@@ -216,12 +216,12 @@ fun NowPlayingFullScreen(
                         Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.next), tint = Color.White, modifier = Modifier.size(48.dp))
                     }
 
-                    // Botón Aleatorio que abre la Fila
+                    // Botón que abre la Fila (Icono de Aleatorio, pero abre la fila)
                     IconButton(onClick = { showQueueSheet = true }) {
                         Icon(
                             imageVector = Icons.Default.Shuffle,
-                            contentDescription = "Fila",
-                            tint = if (isShuffleEnabled) AccentGreen else Color.White,
+                            contentDescription = "Abrir Fila",
+                            tint = Color.White,
                             modifier = Modifier.size(28.dp)
                         )
                     }

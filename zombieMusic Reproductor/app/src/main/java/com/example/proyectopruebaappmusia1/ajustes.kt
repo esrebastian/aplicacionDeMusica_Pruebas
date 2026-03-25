@@ -8,7 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,9 +21,13 @@ import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
 
 @Composable
 fun pantallaAjustes(
+    viewModel: MusicPlayerViewModel,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val minDuration by viewModel.minDurationFilter.collectAsState()
+    var showDurationDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .background(DarkGreenBg)
@@ -83,7 +87,15 @@ fun pantallaAjustes(
             }
 
             item {
-                SettingsSectionTitle(title = "Audio")
+                SettingsSectionTitle(title = "Audio y Biblioteca")
+            }
+            item {
+                SettingsItem(
+                    icon = Icons.Default.Timer,
+                    title = "Excluir canciones cortas",
+                    subtitle = if (minDuration > 0) "Omitir menores de $minDuration seg" else "Desactivado",
+                    onClick = { showDurationDialog = true }
+                )
             }
             item {
                 SettingsItem(
@@ -134,6 +146,77 @@ fun pantallaAjustes(
             }
         }
     }
+
+    if (showDurationDialog) {
+        DurationFilterDialog(
+            initialSeconds = minDuration,
+            onDismiss = { showDurationDialog = false },
+            onConfirm = { seconds ->
+                viewModel.setMinDurationFilter(seconds)
+                showDurationDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun DurationFilterDialog(
+    initialSeconds: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    var seconds by remember { mutableStateOf(initialSeconds.toFloat()) }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { 
+            Text(
+                "Filtro de duración", 
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            ) 
+        },
+        text = {
+            Column {
+                Text(
+                    "Omitir canciones con duración menor a ${seconds.toInt()} segundos.",
+                    color = SecondaryText,
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Slider(
+                    value = seconds,
+                    onValueChange = { seconds = it },
+                    valueRange = 0f..120f,
+                    steps = 23,
+                    colors = SliderDefaults.colors(
+                        thumbColor = AccentGreen,
+                        activeTrackColor = AccentGreen,
+                        inactiveTrackColor = Color.White.copy(alpha = 0.1f)
+                    )
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("0s", color = SecondaryText, fontSize = 12.sp)
+                    Text("120s", color = SecondaryText, fontSize = 12.sp)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(seconds.toInt()) }) {
+                Text("Aplicar", color = AccentGreen, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar", color = Color.White.copy(alpha = 0.7f))
+            }
+        },
+        containerColor = CardGreenBg,
+        shape = RoundedCornerShape(28.dp)
+    )
 }
 
 @Composable
