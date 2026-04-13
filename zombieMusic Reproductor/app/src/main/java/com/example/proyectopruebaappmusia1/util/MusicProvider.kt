@@ -4,7 +4,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
-import com.example.proyectopruebaappmusia1.model.Song
+import com.example.proyectopruebaappmusia1.domain.model.Song
 
 object MusicProvider {
     fun getSongsFromDevice(context: Context): List<Song> {

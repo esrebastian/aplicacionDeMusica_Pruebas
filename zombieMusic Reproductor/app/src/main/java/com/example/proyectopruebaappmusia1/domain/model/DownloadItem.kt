@@ -1,10 +1,10 @@
-package com.example.proyectopruebaappmusia1.model
+package com.example.proyectopruebaappmusia1.domain.model
 
 data class DownloadItem(
     val id: Long,
     val title: String,
     val status: Int,
     val progress: Float,
-    val bytesDownloaded: Long,
+    val downloadedBytes: Long,
     val totalBytes: Long
 )
