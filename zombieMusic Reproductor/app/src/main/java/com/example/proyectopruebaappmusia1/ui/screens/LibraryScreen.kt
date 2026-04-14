@@ -1,7 +1,6 @@
 package com.example.proyectopruebaappmusia1.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,15 +10,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.proyectopruebaappmusia1.R
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.ui.components.SongListItem
 import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
@@ -31,11 +32,12 @@ fun LibraryScreen(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val songs by viewModel.filteredLibrarySongs.collectAsState()
-    val currentSong by viewModel.currentSong.collectAsState()
-    val favoriteIds by viewModel.favoriteIds.collectAsState()
-    val selectedFilter by viewModel.libraryFilter.collectAsState()
-    val searchQuery by viewModel.librarySearchQuery.collectAsState()
+    // Especificamos tipos y valores iniciales explícitamente para evitar errores de inferencia
+    val songs: List<Song> by viewModel.filteredLibrarySongs.collectAsStateWithLifecycle(initialValue = emptyList())
+    val currentSong: Song? by viewModel.currentSong.collectAsStateWithLifecycle(initialValue = null)
+    val favoriteIds: Set<String> by viewModel.favoriteIds.collectAsStateWithLifecycle(initialValue = emptySet())
+    val libraryFilter: String by viewModel.libraryFilter.collectAsStateWithLifecycle(initialValue = "De la A a la Z")
+    val searchQuery: String by viewModel.librarySearchQuery.collectAsStateWithLifecycle(initialValue = "")
     
     var showFilterMenu by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -74,41 +76,51 @@ fun LibraryScreen(
                     focusedContainerColor = CardGreenBg,
                     unfocusedContainerColor = CardGreenBg,
                     focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
                 ),
                 leadingIcon = { Icon(Icons.Default.Search, null, tint = SecondaryText) }
             )
 
-            IconButton(
-                onClick = { showFilterMenu = true },
-                modifier = Modifier.background(CardGreenBg, RoundedCornerShape(12.dp)).size(52.dp)
-            ) {
-                Icon(Icons.Default.FilterList, null, tint = AccentGreen)
-            }
-
-            DropdownMenu(
-                expanded = showFilterMenu,
-                onDismissRequest = { showFilterMenu = false },
-                modifier = Modifier.background(CardGreenBg)
-            ) {
-                filterOptions.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option, color = if (selectedFilter == option) AccentGreen else Color.White) },
-                        onClick = { viewModel.setLibraryFilter(option); showFilterMenu = false },
-                        leadingIcon = { if (selectedFilter == option) Icon(Icons.Default.Check, null, tint = AccentGreen) }
-                    )
+            Box {
+                IconButton(
+                    onClick = { showFilterMenu = true },
+                    modifier = Modifier.background(CardGreenBg, RoundedCornerShape(12.dp)).size(52.dp)
+                ) {
+                    Icon(Icons.Default.FilterList, null, tint = AccentGreen)
+                }
+                
+                DropdownMenu(
+                    expanded = showFilterMenu,
+                    onDismissRequest = { showFilterMenu = false },
+                    modifier = Modifier.background(CardGreenBg)
+                ) {
+                    filterOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option, color = if (libraryFilter == option) AccentGreen else Color.White) },
+                            onClick = { 
+                                viewModel.setLibraryFilter(option)
+                                showFilterMenu = false 
+                            }
+                        )
+                    }
                 }
             }
         }
 
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState, 
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 80.dp)
+        ) {
             items(songs, key = { it.id }) { song ->
                 SongListItem(
                     song = song,
                     isCurrent = song.id == currentSong?.id,
                     isFavorite = song.id in favoriteIds,
                     onFavoriteClick = { viewModel.toggleFavorite(song) },
-                    onClick = { viewModel.selectSong(song, fromUserTap = true) }
+                    onClick = { viewModel.selectSong(song, newQueue = songs) }
                 )
             }
         }

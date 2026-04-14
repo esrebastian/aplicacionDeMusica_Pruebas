@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.proyectopruebaappmusia1.R
+import com.example.proyectopruebaappmusia1.domain.model.Playlist
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.ui.components.AlbumArtImage
@@ -34,6 +35,7 @@ import com.example.proyectopruebaappmusia1.viewmodel.FilterOption
 fun HomeScreen(
     viewModel: MusicPlayerViewModel,
     onHeroClick: () -> Unit,
+    onPlaylistClick: (Playlist) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val currentSong by viewModel.currentSong.collectAsState()
@@ -43,13 +45,20 @@ fun HomeScreen(
     val filteredSongs by viewModel.filteredHomeSongs.collectAsState()
     val searchQuery by viewModel.homeSearchQuery.collectAsState()
     val selectedFilter by viewModel.homeFilter.collectAsState()
+    val playlists by viewModel.homePlaylists.collectAsState()
+    
+    var showCreateDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
+        contentPadding = PaddingValues(bottom = 80.dp, start = 16.dp, end = 16.dp, top = 20.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        item { HomeHeader() }
+        item { 
+            HomeHeader(
+                onSettingsClick = { /* Acción de ajustes */ }
+            ) 
+        }
         
         item {
             HeroPlayerCard(
@@ -73,8 +82,28 @@ fun HomeScreen(
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(recentlyPlayed) { song ->
-                        RecentSongItem(song) { viewModel.selectSong(song, fromUserTap = true) }
+                        RecentSongItem(song) { 
+                            // Al tocar aquí, la cola será el historial reciente
+                            viewModel.selectSong(song, newQueue = recentlyPlayed) 
+                        }
                     }
+                }
+            }
+        }
+
+        item { SectionTitle("Tus Playlists") }
+        item {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                items(playlists) { playlist ->
+                    PlaylistItem(playlist) { onPlaylistClick(playlist) }
+                }
+                
+                // Botón para Crear Playlist al FINAL
+                item {
+                    AddPlaylistItem { showCreateDialog = true }
                 }
             }
         }
@@ -92,23 +121,65 @@ fun HomeScreen(
         }
 
         items(filteredSongs) { song ->
-            Text(song.title, color = Color.White, modifier = Modifier.padding(vertical = 4.dp)) 
+            // Usamos SongListItem para consistencia también en la lista del home
+            com.example.proyectopruebaappmusia1.ui.components.SongListItem(
+                song = song,
+                isCurrent = song.id == currentSong?.id,
+                isFavorite = song.id in favoriteIds,
+                onFavoriteClick = { viewModel.toggleFavorite(song) },
+                onClick = { viewModel.selectSong(song, newQueue = filteredSongs) }
+            )
         }
+    }
+
+    if (showCreateDialog) {
+        CreatePlaylistDialog(
+            onDismiss = { showCreateDialog = false },
+            onCreate = { name ->
+                viewModel.createPlaylist(name)
+                showCreateDialog = false
+            }
+        )
     }
 }
 
 @Composable
-fun HomeHeader() {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+fun HomeHeader(onSettingsClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Image(
             painter = painterResource(R.drawable.ic_zombie_logo),
-            contentDescription = null,
-            modifier = Modifier.size(50.dp).clip(CircleShape)
+            contentDescription = "Avatar",
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(CardGreenBg)
         )
+        
         Spacer(modifier = Modifier.width(12.dp))
-        Column {
-            Text("ZombieMusic", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text("Tu música, tus reglas", color = AccentGreen, fontSize = 14.sp)
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "ZombieMusic",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Tu música, tus reglas",
+                color = AccentGreen,
+                fontSize = 13.sp
+            )
+        }
+        
+        IconButton(onClick = onSettingsClick) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Ajustes",
+                tint = Color.White
+            )
         }
     }
 }
@@ -125,6 +196,86 @@ fun RecentSongItem(song: Song, onClick: () -> Unit) {
         Text(song.title, color = Color.White, maxLines = 1, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         Text(song.artist, color = SecondaryText, maxLines = 1, fontSize = 12.sp)
     }
+}
+
+@Composable
+fun PlaylistItem(playlist: Playlist, onClick: () -> Unit) {
+    Column(modifier = Modifier.width(150.dp).clickable { onClick() }) {
+        AlbumArtImage(
+            albumArtId = playlist.coverImage,
+            contentDescription = null,
+            modifier = Modifier.size(150.dp).clip(RoundedCornerShape(20.dp))
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(playlist.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text("${playlist.songCount} canciones", color = SecondaryText, fontSize = 12.sp)
+    }
+}
+
+@Composable
+fun AddPlaylistItem(onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .width(150.dp)
+            .clickable { onClick() },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(CardGreenBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Crear Playlist",
+                tint = AccentGreen,
+                modifier = Modifier.size(48.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("Nueva Playlist", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text("Crear", color = SecondaryText, fontSize = 12.sp)
+    }
+}
+
+@Composable
+fun CreatePlaylistDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = CardGreenBg,
+        title = { Text("Nueva Playlist", color = Color.White) },
+        text = {
+            TextField(
+                value = name,
+                onValueChange = { name = it },
+                placeholder = { Text("Nombre de la playlist", color = SecondaryText) },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = DarkGreenBg,
+                    unfocusedContainerColor = DarkGreenBg,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = AccentGreen,
+                    focusedIndicatorColor = AccentGreen
+                )
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (name.isNotBlank()) onCreate(name) },
+                enabled = name.isNotBlank()
+            ) {
+                Text("CREAR", color = AccentGreen, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCELAR", color = SecondaryText)
+            }
+        }
+    )
 }
 
 @Composable
@@ -200,7 +351,6 @@ fun HeroPlayerCard(
                     Text(TimeUtils.formatTime(duration), color = SecondaryText, fontSize = 10.sp)
                 }
                 
-                // Controles de reproducción con Favorito integrado
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -223,7 +373,6 @@ fun HeroPlayerCard(
                         Icon(Icons.Default.SkipNext, contentDescription = "Siguiente", tint = Color.White)
                     }
 
-                    // Botón de Favorito integrado en la fila de controles
                     IconButton(onClick = onToggleFavorite) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
@@ -251,7 +400,15 @@ fun HomeSearchBar(
             onValueChange = onQueryChange,
             modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp)),
             placeholder = { Text("Buscar...", color = SecondaryText) },
-            colors = TextFieldDefaults.colors(focusedContainerColor = CardGreenBg, unfocusedContainerColor = CardGreenBg)
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = CardGreenBg, 
+                unfocusedContainerColor = CardGreenBg,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
+            ),
+            leadingIcon = { Icon(Icons.Default.Search, null, tint = SecondaryText) }
         )
         Box {
             IconButton(onClick = { showMenu = true }, modifier = Modifier.background(CardGreenBg, RoundedCornerShape(12.dp))) {

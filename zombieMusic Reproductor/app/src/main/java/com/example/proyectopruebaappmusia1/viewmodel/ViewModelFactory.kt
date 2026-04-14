@@ -20,6 +20,7 @@ class ViewModelFactory(private val context: Context) : ViewModelProvider.Factory
                 val repository = MusicRepositoryImpl(appContext)
                 val favoritesRepository = FavoritesRepositoryImpl(prefs)
                 val recentlyPlayedRepository = RecentlyPlayedRepositoryImpl(prefs)
+                val playlistRepository = PlaylistRepository(prefs) // Nuevo Repositorio
 
                 MusicPlayerViewModel(
                     application = application,
@@ -27,7 +28,8 @@ class ViewModelFactory(private val context: Context) : ViewModelProvider.Factory
                     getFavoriteIdsUseCase = GetFavoriteIdsUseCase(favoritesRepository),
                     toggleFavoriteUseCase = ToggleFavoriteUseCase(favoritesRepository),
                     getRecentlyPlayedIdsUseCase = GetRecentlyPlayedIdsUseCase(recentlyPlayedRepository),
-                    addRecentlyPlayedUseCase = AddRecentlyPlayedUseCase(recentlyPlayedRepository)
+                    addRecentlyPlayedUseCase = AddRecentlyPlayedUseCase(recentlyPlayedRepository),
+                    playlistRepository = playlistRepository
                 ) as T
             }
             modelClass.isAssignableFrom(ExploreViewModel::class.java) -> {

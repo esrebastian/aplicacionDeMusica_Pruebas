@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.proyectopruebaappmusia1.data.PlaylistRepository
+import com.example.proyectopruebaappmusia1.domain.model.Playlist
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.domain.usecase.*
 import com.example.proyectopruebaappmusia1.service.MusicPlayerService
@@ -11,6 +13,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.Calendar
+import kotlin.random.Random
 
 enum class RepeatMode { NONE, ONE, ALL }
 enum class FilterOption(val displayName: String) {
@@ -23,7 +27,8 @@ class MusicPlayerViewModel(
     private val getFavoriteIdsUseCase: GetFavoriteIdsUseCase,
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val getRecentlyPlayedIdsUseCase: GetRecentlyPlayedIdsUseCase,
-    private val addRecentlyPlayedUseCase: AddRecentlyPlayedUseCase
+    private val addRecentlyPlayedUseCase: AddRecentlyPlayedUseCase,
+    private val playlistRepository: PlaylistRepository
 ) : AndroidViewModel(application) {
 
     private val context = application.applicationContext
@@ -49,11 +54,21 @@ class MusicPlayerViewModel(
     private val _allSongs = MutableStateFlow<List<Song>>(emptyList())
     val playlist: StateFlow<List<Song>> = _allSongs.asStateFlow()
 
-    // Filtros Globales (Ajustes)
+    private val _playbackQueue = MutableStateFlow<List<Song>>(emptyList())
+    val playbackQueue: StateFlow<List<Song>> = _playbackQueue.asStateFlow()
+
+    // --- PLAYLISTS ---
+    private val _homePlaylists = MutableStateFlow<List<Playlist>>(emptyList())
+    val homePlaylists: StateFlow<List<Playlist>> = _homePlaylists.asStateFlow()
+
+    private val _selectedPlaylist = MutableStateFlow<Playlist?>(null)
+    val selectedPlaylist: StateFlow<Playlist?> = _selectedPlaylist.asStateFlow()
+
+    // --- FILTROS Y BÚSQUEDA ---
     private val _minDurationFilter = MutableStateFlow(prefs.getInt("min_duration_filter", 0))
     val minDurationFilter: StateFlow<Int> = _minDurationFilter.asStateFlow()
 
-    // Búsqueda y Filtro de Home
+    // Home
     private val _homeSearchQuery = MutableStateFlow("")
     val homeSearchQuery: StateFlow<String> = _homeSearchQuery.asStateFlow()
 
@@ -75,7 +90,7 @@ class MusicPlayerViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    // Librería
+    // Librería (RESTAURADO)
     private val _librarySearchQuery = MutableStateFlow("")
     val librarySearchQuery: StateFlow<String> = _librarySearchQuery.asStateFlow()
 
@@ -123,51 +138,108 @@ class MusicPlayerViewModel(
     init {
         observeMusicService()
         loadRealSongs()
+        
+        viewModelScope.launch {
+            combine(favoriteSongs, _allSongs, playlistRepository.customPlaylists) { favorites, all, custom ->
+                val result = mutableListOf<Playlist>()
+                result.add(Playlist("fav_playlist", "Favoritos", favorites.size, favorites.firstOrNull()?.albumArt, favorites))
+                if (all.isNotEmpty()) {
+                    val calendar = Calendar.getInstance()
+                    val seed = calendar.get(Calendar.YEAR) * 1000 + calendar.get(Calendar.DAY_OF_YEAR)
+                    val dailyMixSongs = all.shuffled(Random(seed)).take(20)
+                    result.add(Playlist("daily_mix", "Mix Diario", dailyMixSongs.size, dailyMixSongs.firstOrNull()?.albumArt, dailyMixSongs))
+                }
+                result.addAll(custom)
+                result
+            }.collect { playlists ->
+                _homePlaylists.value = playlists
+                _selectedPlaylist.value?.let { selected ->
+                    playlists.find { it.id == selected.id }?.let { _selectedPlaylist.value = it }
+                }
+            }
+        }
     }
 
     private fun loadRealSongs() {
-        viewModelScope.launch { _allSongs.value = getSongsUseCase() }
+        viewModelScope.launch { 
+            val songs = getSongsUseCase()
+            _allSongs.value = songs
+            if (_playbackQueue.value.isEmpty()) _playbackQueue.value = songs
+            
+            if (_currentSong.value == null) {
+                val lastPlayedIds = getRecentlyPlayedIdsUseCase().firstOrNull()
+                if (!lastPlayedIds.isNullOrEmpty()) {
+                    val lastSongId = lastPlayedIds.first()
+                    val lastSong = songs.find { it.id == lastSongId }
+                    if (lastSong != null) selectSong(lastSong, autoPlay = false)
+                }
+            }
+        }
     }
 
-    // Acciones Ajustes
-    fun setMinDurationFilter(seconds: Int) {
-        _minDurationFilter.value = seconds
-        prefs.edit().putInt("min_duration_filter", seconds).apply()
-    }
-
-    // Acciones Home
+    // --- ACCIONES ---
     fun onHomeSearch(query: String) { _homeSearchQuery.value = query }
     fun setHomeFilter(filter: FilterOption) { _homeFilter.value = filter }
-
-    // Acciones Librería
+    
     fun onSearchLibrary(query: String) { _librarySearchQuery.value = query }
     fun setLibraryFilter(filter: String) {
         _libraryFilter.value = filter
         prefs.edit().putString("library_filter", filter).apply()
     }
+    fun setMinDurationFilter(seconds: Int) {
+        _minDurationFilter.value = seconds
+        prefs.edit().putInt("min_duration_filter", seconds).apply()
+    }
 
-    fun selectSong(song: Song, autoPlay: Boolean = true, fromUserTap: Boolean = false) {
+    fun createPlaylist(name: String) { playlistRepository.createPlaylist(name) }
+    fun selectPlaylistForDetail(playlist: Playlist?) { _selectedPlaylist.value = playlist }
+
+    fun playPlaylist(playlist: Playlist, shuffle: Boolean = false) {
+        if (playlist.songs.isEmpty()) return
+        val newQueue = if (shuffle) playlist.songs.shuffled() else playlist.songs
+        _playbackQueue.value = newQueue
+        selectSong(newQueue.first(), autoPlay = true, newQueue = newQueue)
+    }
+
+    fun selectSong(song: Song, autoPlay: Boolean = true, fromUserTap: Boolean = false, newQueue: List<Song>? = null) {
         _currentSong.value = song
+        newQueue?.let { _playbackQueue.value = it }
         addRecentlyPlayedUseCase(song.id)
         musicService.loadSong(song.filePath, song.title, song.artist)
         if (autoPlay) musicService.play()
     }
 
     fun togglePlayPause() = musicService.togglePlayPause()
+
     fun nextSong() {
-        val list = _allSongs.value
-        val currentIndex = list.indexOfFirst { it.id == _currentSong.value?.id }
-        if (currentIndex != -1 && currentIndex < list.size - 1) selectSong(list[currentIndex + 1])
+        val queue = _playbackQueue.value
+        val currentIndex = queue.indexOfFirst { it.id == _currentSong.value?.id }
+        if (currentIndex != -1) {
+            if (currentIndex < queue.size - 1) {
+                selectSong(queue[currentIndex + 1])
+            } else if (_repeatMode.value == RepeatMode.ALL) {
+                selectSong(queue.first())
+            }
+        }
     }
+
     fun previousSong() {
-        val list = _allSongs.value
-        val currentIndex = list.indexOfFirst { it.id == _currentSong.value?.id }
-        if (currentIndex > 0) selectSong(list[currentIndex - 1])
+        val queue = _playbackQueue.value
+        val currentIndex = queue.indexOfFirst { it.id == _currentSong.value?.id }
+        if (currentIndex > 0) {
+            selectSong(queue[currentIndex - 1])
+        } else if (currentIndex == 0 && _repeatMode.value == RepeatMode.ALL) {
+            selectSong(queue.last())
+        }
     }
 
     fun toggleFavorite(song: Song?) { song?.let { toggleFavoriteUseCase(it.id) } }
     fun seekTo(position: Float) { musicService.seekTo((position * _duration.value).toLong()) }
-    fun toggleShuffle() { _isShuffleEnabled.value = !_isShuffleEnabled.value }
+    fun toggleShuffle() { 
+        _isShuffleEnabled.value = !_isShuffleEnabled.value
+        if (_isShuffleEnabled.value) _playbackQueue.value = _playbackQueue.value.shuffled()
+    }
+    
     fun toggleRepeatMode() {
         _repeatMode.value = when(_repeatMode.value) {
             RepeatMode.NONE -> RepeatMode.ALL
