@@ -10,8 +10,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.example.proyectopruebaappmusia1.BottomTab
 import com.example.proyectopruebaappmusia1.R
+import com.example.proyectopruebaappmusia1.ui.BottomTab
 import com.example.proyectopruebaappmusia1.ui.theme.AccentGreen
 import com.example.proyectopruebaappmusia1.ui.theme.DarkGreenBg
 import com.example.proyectopruebaappmusia1.ui.theme.SecondaryText

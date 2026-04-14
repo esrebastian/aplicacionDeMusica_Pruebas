@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.proyectopruebaappmusia1.ui.BottomTab
 import com.example.proyectopruebaappmusia1.ui.components.MusicBottomNavigation
 import com.example.proyectopruebaappmusia1.ui.screens.HomeScreen
 import com.example.proyectopruebaappmusia1.ui.screens.ExploreScreen

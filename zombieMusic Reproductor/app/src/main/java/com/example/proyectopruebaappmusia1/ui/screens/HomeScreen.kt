@@ -11,18 +11,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -96,8 +92,7 @@ fun HomeScreen(
         }
 
         items(filteredSongs) { song ->
-            // Aquí podrías usar SongListItem si prefieres lista, o un diseño diferente
-            Text(song.title, color = Color.White) 
+            Text(song.title, color = Color.White, modifier = Modifier.padding(vertical = 4.dp)) 
         }
     }
 }
@@ -148,29 +143,94 @@ fun HeroPlayerCard(
     onClick: () -> Unit
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().height(180.dp).clickable { onClick() },
-        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(28.dp),
         color = CardGreenBg
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            AlbumArtImage(song?.albumArt, null, Modifier.size(120.dp).clip(RoundedCornerShape(16.dp)))
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AlbumArtImage(
+                song?.albumArt,
+                null,
+                Modifier
+                    .size(130.dp)
+                    .clip(RoundedCornerShape(20.dp))
+            )
+            
             Spacer(modifier = Modifier.width(16.dp))
+            
             Column(modifier = Modifier.weight(1f)) {
-                Text(song?.title ?: "Sin música", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                Text(song?.artist ?: "Selecciona un tema", color = SecondaryText, fontSize = 14.sp, maxLines = 1)
+                Text(
+                    song?.title ?: "Sin música",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+                Text(
+                    song?.artist ?: "Selecciona un tema",
+                    color = SecondaryText,
+                    fontSize = 14.sp,
+                    maxLines = 1
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
                 
                 Slider(
                     value = progress,
                     onValueChange = { onSeek(it) },
-                    colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
+                    colors = SliderDefaults.colors(
+                        thumbColor = AccentGreen,
+                        activeTrackColor = AccentGreen,
+                        inactiveTrackColor = Color.Gray.copy(alpha = 0.3f)
+                    ),
+                    modifier = Modifier.height(20.dp)
                 )
                 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(TimeUtils.formatTime(currentPos), color = SecondaryText, fontSize = 10.sp)
-                    IconButton(onClick = onPlayPause) {
-                        Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = AccentGreen)
-                    }
                     Text(TimeUtils.formatTime(duration), color = SecondaryText, fontSize = 10.sp)
+                }
+                
+                // Controles de reproducción con Favorito integrado
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onPrevious) {
+                        Icon(Icons.Default.SkipPrevious, contentDescription = "Anterior", tint = Color.White)
+                    }
+                    
+                    IconButton(onClick = onPlayPause) {
+                        Icon(
+                            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Reproducir/Pausar",
+                            tint = AccentGreen,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+                    
+                    IconButton(onClick = onNext) {
+                        Icon(Icons.Default.SkipNext, contentDescription = "Siguiente", tint = Color.White)
+                    }
+
+                    // Botón de Favorito integrado en la fila de controles
+                    IconButton(onClick = onToggleFavorite) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = "Favorito",
+                            tint = if (isFavorite) AccentGreen else Color.White
+                        )
+                    }
                 }
             }
         }
