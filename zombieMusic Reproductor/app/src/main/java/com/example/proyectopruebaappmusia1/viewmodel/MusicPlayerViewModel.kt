@@ -160,7 +160,8 @@ class MusicPlayerViewModel(
         }
     }
 
-    private fun loadRealSongs() {
+    // AHORA ES PÚBLICA PARA REFRESCAR TRAS PERMISOS
+    fun loadRealSongs() {
         viewModelScope.launch { 
             val songs = getSongsUseCase()
             _allSongs.value = songs

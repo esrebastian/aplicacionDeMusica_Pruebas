@@ -1,23 +1,34 @@
 package com.example.proyectopruebaappmusia1
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyectopruebaappmusia1.ui.BottomTab
 import com.example.proyectopruebaappmusia1.ui.components.MusicBottomNavigation
 import com.example.proyectopruebaappmusia1.ui.components.NowPlayingMiniBar
 import com.example.proyectopruebaappmusia1.ui.screens.*
-import com.example.proyectopruebaappmusia1.ui.theme.ProyectoPruebaAppMusia1Theme
+import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.viewmodel.DownloadViewModel
 import com.example.proyectopruebaappmusia1.viewmodel.ExploreViewModel
 import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
@@ -43,6 +54,38 @@ class MainActivity : ComponentActivity() {
                 val currentSong by musicViewModel.currentSong.collectAsStateWithLifecycle()
                 val isPlaying by musicViewModel.isPlaying.collectAsStateWithLifecycle()
                 val progress by musicViewModel.progress.collectAsStateWithLifecycle()
+
+                // --- GESTIÓN DE PERMISOS ---
+                val permissionsToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    arrayOf(Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+                }
+
+                var showPermissionDialog by remember { 
+                    mutableStateOf(!permissionsToRequest.all { 
+                        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED 
+                    }) 
+                }
+
+                val permissionLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestMultiplePermissions()
+                ) { permissions ->
+                    val allGranted = permissions.values.all { it }
+                    if (allGranted) {
+                        // CORRECCIÓN: Ahora llamamos a cargar las canciones inmediatamente al dar permisos
+                        musicViewModel.loadRealSongs()
+                    }
+                }
+
+                if (showPermissionDialog) {
+                    PermissionExplanationDialog(
+                        onConfirm = {
+                            showPermissionDialog = false
+                            permissionLauncher.launch(permissionsToRequest)
+                        }
+                    )
+                }
 
                 BackHandler(enabled = isFullScreenPlayerVisible || selectedPlaylist != null) {
                     when {
@@ -80,7 +123,6 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     ) { innerPadding ->
-                        // Aplicamos innerPadding aquí para que las pantallas respeten la barra de estado y la de navegación
                         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
                             when (selectedTab) {
                                 BottomTab.HOME -> HomeScreen(
@@ -132,4 +174,36 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
+@Composable
+fun PermissionExplanationDialog(onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = { /* No permitir cerrar sin decidir */ },
+        containerColor = CardGreenBg,
+        title = { 
+            Text("¡Bienvenido a ZombieMusic!", color = Color.White, fontWeight = FontWeight.Bold) 
+        },
+        text = {
+            Column {
+                Text(
+                    "Para que tus reglas dominen la música, necesitamos permiso para:",
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("• Leer tus archivos de audio.", color = AccentGreen, fontSize = 13.sp)
+                Text("• Mostrar el reproductor en notificaciones.", color = AccentGreen, fontSize = 13.sp)
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = AccentGreen),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("DAR PERMISOS", color = DarkGreenBg, fontWeight = FontWeight.Bold)
+            }
+        }
+    )
 }
