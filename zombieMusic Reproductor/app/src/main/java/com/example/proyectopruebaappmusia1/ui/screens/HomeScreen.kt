@@ -27,6 +27,7 @@ import com.example.proyectopruebaappmusia1.domain.model.Playlist
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.ui.components.AlbumArtImage
+import com.example.proyectopruebaappmusia1.ui.components.SettingsButton
 import com.example.proyectopruebaappmusia1.util.TimeUtils
 import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
 import com.example.proyectopruebaappmusia1.viewmodel.FilterOption
@@ -42,7 +43,6 @@ fun HomeScreen(
     val isPlaying by viewModel.isPlaying.collectAsState()
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
     val favoriteIds by viewModel.favoriteIds.collectAsState()
-    val filteredSongs by viewModel.filteredHomeSongs.collectAsState()
     val searchQuery by viewModel.homeSearchQuery.collectAsState()
     val selectedFilter by viewModel.homeFilter.collectAsState()
     val playlists by viewModel.homePlaylists.collectAsState()
@@ -83,7 +83,6 @@ fun HomeScreen(
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(recentlyPlayed) { song ->
                         RecentSongItem(song) { 
-                            // Al tocar aquí, la cola será el historial reciente
                             viewModel.selectSong(song, newQueue = recentlyPlayed) 
                         }
                     }
@@ -101,7 +100,6 @@ fun HomeScreen(
                     PlaylistItem(playlist) { onPlaylistClick(playlist) }
                 }
                 
-                // Botón para Crear Playlist al FINAL
                 item {
                     AddPlaylistItem { showCreateDialog = true }
                 }
@@ -110,7 +108,6 @@ fun HomeScreen(
 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SectionTitle("Todas las canciones")
                 HomeSearchBar(
                     query = searchQuery,
                     onQueryChange = { viewModel.onHomeSearch(it) },
@@ -118,17 +115,6 @@ fun HomeScreen(
                     onFilterSelect = { viewModel.setHomeFilter(it) }
                 )
             }
-        }
-
-        items(filteredSongs) { song ->
-            // Usamos SongListItem para consistencia también en la lista del home
-            com.example.proyectopruebaappmusia1.ui.components.SongListItem(
-                song = song,
-                isCurrent = song.id == currentSong?.id,
-                isFavorite = song.id in favoriteIds,
-                onFavoriteClick = { viewModel.toggleFavorite(song) },
-                onClick = { viewModel.selectSong(song, newQueue = filteredSongs) }
-            )
         }
     }
 
@@ -174,13 +160,8 @@ fun HomeHeader(onSettingsClick: () -> Unit) {
             )
         }
         
-        IconButton(onClick = onSettingsClick) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "Ajustes",
-                tint = Color.White
-            )
-        }
+        // RECURSO UNIFICADO
+        SettingsButton(onClick = onSettingsClick)
     }
 }
 

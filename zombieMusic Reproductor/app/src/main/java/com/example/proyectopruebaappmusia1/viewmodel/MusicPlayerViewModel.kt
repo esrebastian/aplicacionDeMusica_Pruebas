@@ -90,7 +90,7 @@ class MusicPlayerViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    // Librería (RESTAURADO)
+    // Librería
     private val _librarySearchQuery = MutableStateFlow("")
     val librarySearchQuery: StateFlow<String> = _librarySearchQuery.asStateFlow()
 
@@ -160,7 +160,6 @@ class MusicPlayerViewModel(
         }
     }
 
-    // AHORA ES PÚBLICA PARA REFRESCAR TRAS PERMISOS
     fun loadRealSongs() {
         viewModelScope.launch { 
             val songs = getSongsUseCase()
@@ -236,9 +235,13 @@ class MusicPlayerViewModel(
 
     fun toggleFavorite(song: Song?) { song?.let { toggleFavoriteUseCase(it.id) } }
     fun seekTo(position: Float) { musicService.seekTo((position * _duration.value).toLong()) }
+    
+    // RESTAURADO: toggleShuffle y toggleRepeatMode
     fun toggleShuffle() { 
         _isShuffleEnabled.value = !_isShuffleEnabled.value
-        if (_isShuffleEnabled.value) _playbackQueue.value = _playbackQueue.value.shuffled()
+        if (_isShuffleEnabled.value) {
+            _playbackQueue.value = _playbackQueue.value.shuffled()
+        }
     }
     
     fun toggleRepeatMode() {

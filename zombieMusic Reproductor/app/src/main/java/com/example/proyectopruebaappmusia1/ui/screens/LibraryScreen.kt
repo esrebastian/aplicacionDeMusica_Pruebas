@@ -57,8 +57,19 @@ fun LibraryScreen(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text("Tu Librería", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            IconButton(onClick = onSettingsClick) {
-                Icon(Icons.Default.Settings, null, tint = SecondaryText)
+            
+            // BOTÓN UNIFICADO (Igual al de Inicio y Favoritos)
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(CardGreenBg)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Ajustes",
+                    tint = SecondaryText
+                )
             }
         }
 

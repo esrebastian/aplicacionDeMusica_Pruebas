@@ -1,5 +1,6 @@
 package com.example.proyectopruebaappmusia1.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +17,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.theme.*
+
+@Composable
+fun SettingsButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(CardGreenBg)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Settings,
+            contentDescription = "Ajustes",
+            tint = SecondaryText
+        )
+    }
+}
 
 @Composable
 fun MiniPlayer(
