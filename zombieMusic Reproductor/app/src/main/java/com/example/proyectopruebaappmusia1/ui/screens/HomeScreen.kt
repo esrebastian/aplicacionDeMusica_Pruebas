@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.proyectopruebaappmusia1.R
@@ -46,11 +47,65 @@ fun HomeScreen(
     val searchQuery by viewModel.homeSearchQuery.collectAsState()
     val selectedFilter by viewModel.homeFilter.collectAsState()
     val playlists by viewModel.homePlaylists.collectAsState()
-    
+    val progress by viewModel.progress.collectAsState()
+    val duration by viewModel.duration.collectAsState()
+    val currentPos by viewModel.currentPosition.collectAsState()
+
+    HomeContent(
+        currentSong = currentSong,
+        isPlaying = isPlaying,
+        recentlyPlayed = recentlyPlayed,
+        favoriteIds = favoriteIds,
+        searchQuery = searchQuery,
+        selectedFilter = selectedFilter,
+        playlists = playlists,
+        progress = progress,
+        duration = duration,
+        currentPos = currentPos,
+        onHeroClick = onHeroClick,
+        onPlaylistClick = onPlaylistClick,
+        onToggleFavorite = { viewModel.toggleFavorite(currentSong) },
+        onPlayPause = { viewModel.togglePlayPause() },
+        onNext = { viewModel.nextSong() },
+        onPrevious = { viewModel.previousSong() },
+        onSeek = { viewModel.seekTo(it) },
+        onSearchChange = { viewModel.onHomeSearch(it) },
+        onFilterSelect = { viewModel.setHomeFilter(it) },
+        onCreatePlaylist = { viewModel.createPlaylist(it) },
+        onSongClick = { song -> viewModel.selectSong(song, newQueue = recentlyPlayed) },
+        modifier = modifier
+    )
+}
+
+@Composable
+fun HomeContent(
+    currentSong: Song?,
+    isPlaying: Boolean,
+    recentlyPlayed: List<Song>,
+    favoriteIds: Set<String>,
+    searchQuery: String,
+    selectedFilter: FilterOption,
+    playlists: List<Playlist>,
+    progress: Float,
+    duration: Long,
+    currentPos: Long,
+    onHeroClick: () -> Unit,
+    onPlaylistClick: (Playlist) -> Unit,
+    onToggleFavorite: () -> Unit,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+    onSeek: (Float) -> Unit,
+    onSearchChange: (String) -> Unit,
+    onFilterSelect: (FilterOption) -> Unit,
+    onCreatePlaylist: (String) -> Unit,
+    onSongClick: (Song) -> Unit,
+    modifier: Modifier = Modifier
+) {
     var showCreateDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().background(DarkGreenBg),
         contentPadding = PaddingValues(bottom = 80.dp, start = 16.dp, end = 16.dp, top = 20.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
@@ -64,15 +119,15 @@ fun HomeScreen(
             HeroPlayerCard(
                 song = currentSong,
                 isPlaying = isPlaying,
-                progress = viewModel.progress.collectAsState().value,
-                duration = viewModel.duration.collectAsState().value,
-                currentPos = viewModel.currentPosition.collectAsState().value,
+                progress = progress,
+                duration = duration,
+                currentPos = currentPos,
                 isFavorite = currentSong?.id in favoriteIds,
-                onToggleFavorite = { viewModel.toggleFavorite(currentSong) },
-                onPlayPause = { viewModel.togglePlayPause() },
-                onNext = { viewModel.nextSong() },
-                onPrevious = { viewModel.previousSong() },
-                onSeek = { viewModel.seekTo(it) },
+                onToggleFavorite = onToggleFavorite,
+                onPlayPause = onPlayPause,
+                onNext = onNext,
+                onPrevious = onPrevious,
+                onSeek = onSeek,
                 onClick = onHeroClick
             )
         }
@@ -82,9 +137,7 @@ fun HomeScreen(
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(recentlyPlayed) { song ->
-                        RecentSongItem(song) { 
-                            viewModel.selectSong(song, newQueue = recentlyPlayed) 
-                        }
+                        RecentSongItem(song) { onSongClick(song) }
                     }
                 }
             }
@@ -110,9 +163,9 @@ fun HomeScreen(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 HomeSearchBar(
                     query = searchQuery,
-                    onQueryChange = { viewModel.onHomeSearch(it) },
+                    onQueryChange = onSearchChange,
                     selectedFilter = selectedFilter,
-                    onFilterSelect = { viewModel.setHomeFilter(it) }
+                    onFilterSelect = onFilterSelect
                 )
             }
         }
@@ -122,7 +175,7 @@ fun HomeScreen(
         CreatePlaylistDialog(
             onDismiss = { showCreateDialog = false },
             onCreate = { name ->
-                viewModel.createPlaylist(name)
+                onCreatePlaylist(name)
                 showCreateDialog = false
             }
         )
@@ -160,7 +213,6 @@ fun HomeHeader(onSettingsClick: () -> Unit) {
             )
         }
         
-        // RECURSO UNIFICADO
         SettingsButton(onClick = onSettingsClick)
     }
 }
@@ -404,5 +456,40 @@ fun HomeSearchBar(
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun HomeScreenPreview() {
+    ProyectoPruebaAppMusia1Theme {
+        HomeContent(
+            currentSong = Song("1", "Canción de Prueba", "Artista Zombie", 300000, "", null),
+            isPlaying = true,
+            recentlyPlayed = listOf(
+                Song("2", "Recent 1", "Artist 1", 200000, "", null),
+                Song("3", "Recent 2", "Artist 2", 180000, "", null)
+            ),
+            favoriteIds = setOf("1"),
+            searchQuery = "",
+            selectedFilter = FilterOption.TITLE,
+            playlists = listOf(
+                Playlist("p1", "Mi Playlist Mix", 12, null)
+            ),
+            progress = 0.4f,
+            duration = 300000,
+            currentPos = 120000,
+            onHeroClick = {},
+            onPlaylistClick = {},
+            onToggleFavorite = {},
+            onPlayPause = {},
+            onNext = {},
+            onPrevious = {},
+            onSeek = {},
+            onSearchChange = {},
+            onFilterSelect = {},
+            onCreatePlaylist = {},
+            onSongClick = {}
+        )
     }
 }

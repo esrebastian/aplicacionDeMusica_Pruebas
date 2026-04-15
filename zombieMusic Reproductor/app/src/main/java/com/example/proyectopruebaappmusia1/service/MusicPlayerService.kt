@@ -7,11 +7,13 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
@@ -58,6 +60,9 @@ class MusicPlayerService(private val context: Context) {
     private val _skipPreviousEvent = Channel<Unit>(Channel.BUFFERED)
     val skipPreviousEvent = _skipPreviousEvent.receiveAsFlow()
 
+    private val _favoriteEvent = Channel<Unit>(Channel.BUFFERED)
+    val favoriteEvent = _favoriteEvent.receiveAsFlow()
+
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
@@ -66,6 +71,9 @@ class MusicPlayerService(private val context: Context) {
                 }
                 MusicService.ACTION_PREVIOUS -> {
                     _skipPreviousEvent.trySend(Unit)
+                }
+                MusicService.ACTION_FAVORITE -> {
+                    _favoriteEvent.trySend(Unit)
                 }
             }
         }
@@ -83,6 +91,7 @@ class MusicPlayerService(private val context: Context) {
         val filter = IntentFilter().apply {
             addAction(MusicService.ACTION_NEXT)
             addAction(MusicService.ACTION_PREVIOUS)
+            addAction(MusicService.ACTION_FAVORITE)
         }
         
         // Usar RECEIVER_EXPORTED para permitir que el Broadcast enviado por el Servicio llegue aquí
@@ -133,6 +142,20 @@ class MusicPlayerService(private val context: Context) {
                 }
             })
         }
+    }
+
+    /**
+     * Envía un comando al servicio para actualizar el icono de favorito en la notificación.
+     */
+    fun updateFavoriteState(isFavorite: Boolean) {
+        val controller = mediaController ?: return
+        val args = Bundle().apply {
+            putBoolean(MusicService.ARG_IS_FAVORITE, isFavorite)
+        }
+        controller.sendCustomCommand(
+            SessionCommand(MusicService.CUSTOM_COMMAND_UPDATE_FAVORITE, Bundle.EMPTY),
+            args
+        )
     }
 
     fun loadSong(filePath: String, title: String, artist: String, artworkUri: Uri? = null) {

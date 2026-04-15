@@ -2,6 +2,7 @@ package com.example.proyectopruebaappmusia1.service
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -11,16 +12,30 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.common.ForwardingPlayer
+import androidx.media3.session.CommandButton
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
 import com.example.proyectopruebaappmusia1.MainActivity
+import com.example.proyectopruebaappmusia1.R
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 
 @OptIn(UnstableApi::class)
 class MusicService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private lateinit var exoPlayer: ExoPlayer
+    private var isCurrentFavorite = false
 
     companion object {
         const val ACTION_NEXT = "com.example.proyectopruebaappmusia1.NEXT"
         const val ACTION_PREVIOUS = "com.example.proyectopruebaappmusia1.PREVIOUS"
+        const val ACTION_FAVORITE = "com.example.proyectopruebaappmusia1.FAVORITE"
+        
+        const val CUSTOM_COMMAND_FAVORITE = "ACTION_FAVORITE"
+        const val CUSTOM_COMMAND_CLOSE = "ACTION_CLOSE"
+        const val CUSTOM_COMMAND_UPDATE_FAVORITE = "UPDATE_FAVORITE_STATE"
+        
+        const val ARG_IS_FAVORITE = "is_favorite"
     }
 
     override fun onCreate() {
@@ -35,31 +50,15 @@ class MusicService : MediaSessionService() {
             .setAudioAttributes(audioAttributes, true)
             .build()
 
-        // Creamos un ForwardingPlayer para "engañar" a la sesión y decirle que siempre puede saltar canciones
         val localForwardingPlayer = object : ForwardingPlayer(exoPlayer) {
             override fun getAvailableCommands(): Player.Commands {
                 return super.getAvailableCommands().buildUpon()
                     .add(Player.COMMAND_SEEK_TO_NEXT)
-                    .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
                     .add(Player.COMMAND_SEEK_TO_PREVIOUS)
-                    .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
                     .build()
             }
-
-            override fun isCommandAvailable(command: Int): Boolean {
-                return when (command) {
-                    Player.COMMAND_SEEK_TO_NEXT,
-                    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
-                    Player.COMMAND_SEEK_TO_PREVIOUS,
-                    Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> true
-                    else -> super.isCommandAvailable(command)
-                }
-            }
-
             override fun seekToNext() = triggerAction(ACTION_NEXT)
-            override fun seekToNextMediaItem() = triggerAction(ACTION_NEXT)
             override fun seekToPrevious() = triggerAction(ACTION_PREVIOUS)
-            override fun seekToPreviousMediaItem() = triggerAction(ACTION_PREVIOUS)
         }
 
         val pendingIntent = PendingIntent.getActivity(
@@ -68,26 +67,71 @@ class MusicService : MediaSessionService() {
         )
 
         mediaSession = MediaSession.Builder(this, localForwardingPlayer)
-            .setId("LocalMusicSession")
+            .setId("ZombieMusicSession")
             .setSessionActivity(pendingIntent)
-            .setCallback(object : MediaSession.Callback {
-                // Forzamos la aceptación de estos comandos desde controladores externos (como la notificación)
-                override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
-                    val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
-                        .build()
-                    val playerCommands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
-                        .add(Player.COMMAND_SEEK_TO_NEXT)
-                        .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-                        .add(Player.COMMAND_SEEK_TO_PREVIOUS)
-                        .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
-                        .build()
-                    return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
-                        .setAvailableSessionCommands(sessionCommands)
-                        .setAvailablePlayerCommands(playerCommands)
-                        .build()
-                }
-            })
+            .setCallback(CustomSessionCallback())
             .build()
+            
+        updateNotificationLayout()
+    }
+
+    private inner class CustomSessionCallback : MediaSession.Callback {
+        override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
+            val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                .add(SessionCommand(CUSTOM_COMMAND_FAVORITE, Bundle.EMPTY))
+                .add(SessionCommand(CUSTOM_COMMAND_CLOSE, Bundle.EMPTY))
+                .add(SessionCommand(CUSTOM_COMMAND_UPDATE_FAVORITE, Bundle.EMPTY))
+                .build()
+            
+            val playerCommands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
+                .add(Player.COMMAND_SEEK_TO_NEXT)
+                .add(Player.COMMAND_SEEK_TO_PREVIOUS)
+                .build()
+                
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                .setAvailableSessionCommands(sessionCommands)
+                .setAvailablePlayerCommands(playerCommands)
+                .setCustomLayout(listOf(getFavoriteButton(), getCloseButton()))
+                .build()
+        }
+
+        override fun onCustomCommand(session: MediaSession, controller: MediaSession.ControllerInfo, customCommand: SessionCommand, args: Bundle): ListenableFuture<SessionResult> {
+            when (customCommand.customAction) {
+                CUSTOM_COMMAND_FAVORITE -> triggerAction(ACTION_FAVORITE)
+                CUSTOM_COMMAND_CLOSE -> {
+                    exoPlayer.stop()
+                    stopSelf()
+                }
+                CUSTOM_COMMAND_UPDATE_FAVORITE -> {
+                    isCurrentFavorite = args.getBoolean(ARG_IS_FAVORITE, false)
+                    updateNotificationLayout()
+                }
+            }
+            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+        }
+    }
+
+    private fun getFavoriteButton(): CommandButton {
+        val favoriteIcon = if (isCurrentFavorite) R.drawable.ic_favorite_filled else R.drawable.ic_favorite_border
+        return CommandButton.Builder()
+            .setDisplayName("Favorito")
+            .setSessionCommand(SessionCommand(CUSTOM_COMMAND_FAVORITE, Bundle.EMPTY))
+            .setIconResId(favoriteIcon)
+            .setEnabled(true)
+            .build()
+    }
+
+    private fun getCloseButton(): CommandButton {
+        return CommandButton.Builder()
+            .setDisplayName("Cerrar")
+            .setSessionCommand(SessionCommand(CUSTOM_COMMAND_CLOSE, Bundle.EMPTY))
+            .setIconResId(R.drawable.ic_close)
+            .setEnabled(true)
+            .build()
+    }
+
+    private fun updateNotificationLayout() {
+        mediaSession?.setCustomLayout(listOf(getFavoriteButton(), getCloseButton()))
     }
 
     private fun triggerAction(action: String) {

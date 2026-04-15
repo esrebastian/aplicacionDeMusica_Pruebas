@@ -10,13 +10,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -25,23 +24,50 @@ import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.ui.components.SongListItem
 import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     viewModel: MusicPlayerViewModel,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Especificamos tipos y valores iniciales explícitamente para evitar errores de inferencia
-    val songs: List<Song> by viewModel.filteredLibrarySongs.collectAsStateWithLifecycle(initialValue = emptyList())
-    val currentSong: Song? by viewModel.currentSong.collectAsStateWithLifecycle(initialValue = null)
-    val favoriteIds: Set<String> by viewModel.favoriteIds.collectAsStateWithLifecycle(initialValue = emptySet())
-    val libraryFilter: String by viewModel.libraryFilter.collectAsStateWithLifecycle(initialValue = "De la A a la Z")
-    val searchQuery: String by viewModel.librarySearchQuery.collectAsStateWithLifecycle(initialValue = "")
+    val songs by viewModel.filteredLibrarySongs.collectAsStateWithLifecycle(initialValue = emptyList())
+    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle(initialValue = null)
+    val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle(initialValue = emptySet())
+    val libraryFilter by viewModel.libraryFilter.collectAsStateWithLifecycle(initialValue = "De la A a la Z")
+    val searchQuery by viewModel.librarySearchQuery.collectAsStateWithLifecycle(initialValue = "")
     
+    LibraryContent(
+        songs = songs,
+        currentSong = currentSong,
+        favoriteIds = favoriteIds,
+        libraryFilter = libraryFilter,
+        searchQuery = searchQuery,
+        onSettingsClick = onSettingsClick,
+        onSearchChange = { viewModel.onSearchLibrary(it) },
+        onFilterSelect = { viewModel.setLibraryFilter(it) },
+        onSongClick = { song -> viewModel.selectSong(song, newQueue = songs) },
+        onFavoriteClick = { viewModel.toggleFavorite(it) },
+        modifier = modifier
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LibraryContent(
+    songs: List<Song>,
+    currentSong: Song?,
+    favoriteIds: Set<String>,
+    libraryFilter: String,
+    searchQuery: String,
+    onSettingsClick: () -> Unit,
+    onSearchChange: (String) -> Unit,
+    onFilterSelect: (String) -> Unit,
+    onSongClick: (Song) -> Unit,
+    onFavoriteClick: (Song) -> Unit,
+    modifier: Modifier = Modifier
+) {
     var showFilterMenu by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
-
     val filterOptions = listOf("De la A a la Z", "Artista", "Más recientes", "Duración más larga")
 
     Column(
@@ -58,7 +84,6 @@ fun LibraryScreen(
         ) {
             Text("Tu Librería", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             
-            // BOTÓN UNIFICADO (Igual al de Inicio y Favoritos)
             IconButton(
                 onClick = onSettingsClick,
                 modifier = Modifier
@@ -80,7 +105,7 @@ fun LibraryScreen(
         ) {
             TextField(
                 value = searchQuery,
-                onValueChange = { viewModel.onSearchLibrary(it) },
+                onValueChange = onSearchChange,
                 placeholder = { Text("Buscar en tu música...", color = SecondaryText) },
                 modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp)),
                 colors = TextFieldDefaults.colors(
@@ -111,7 +136,7 @@ fun LibraryScreen(
                         DropdownMenuItem(
                             text = { Text(option, color = if (libraryFilter == option) AccentGreen else Color.White) },
                             onClick = { 
-                                viewModel.setLibraryFilter(option)
+                                onFilterSelect(option)
                                 showFilterMenu = false 
                             }
                         )
@@ -130,10 +155,32 @@ fun LibraryScreen(
                     song = song,
                     isCurrent = song.id == currentSong?.id,
                     isFavorite = song.id in favoriteIds,
-                    onFavoriteClick = { viewModel.toggleFavorite(song) },
-                    onClick = { viewModel.selectSong(song, newQueue = songs) }
+                    onFavoriteClick = { onFavoriteClick(song) },
+                    onClick = { onSongClick(song) }
                 )
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun LibraryScreenPreview() {
+    ProyectoPruebaAppMusia1Theme {
+        LibraryContent(
+            songs = listOf(
+                Song("1", "Song One", "Artist A", 180000, "", null),
+                Song("2", "Song Two", "Artist B", 240000, "", null)
+            ),
+            currentSong = null,
+            favoriteIds = setOf("1"),
+            libraryFilter = "De la A a la Z",
+            searchQuery = "",
+            onSettingsClick = {},
+            onSearchChange = {},
+            onFilterSelect = {},
+            onSongClick = {},
+            onFavoriteClick = {}
+        )
     }
 }
