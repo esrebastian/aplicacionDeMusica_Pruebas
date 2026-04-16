@@ -57,18 +57,15 @@ class MusicPlayerViewModel(
     private val _playbackQueue = MutableStateFlow<List<Song>>(emptyList())
     val playbackQueue: StateFlow<List<Song>> = _playbackQueue.asStateFlow()
 
-    // --- PLAYLISTS ---
     private val _homePlaylists = MutableStateFlow<List<Playlist>>(emptyList())
     val homePlaylists: StateFlow<List<Playlist>> = _homePlaylists.asStateFlow()
 
     private val _selectedPlaylist = MutableStateFlow<Playlist?>(null)
     val selectedPlaylist: StateFlow<Playlist?> = _selectedPlaylist.asStateFlow()
 
-    // --- FILTROS Y BÚSQUEDA ---
     private val _minDurationFilter = MutableStateFlow(prefs.getInt("min_duration_filter", 0))
     val minDurationFilter: StateFlow<Int> = _minDurationFilter.asStateFlow()
 
-    // Home
     private val _homeSearchQuery = MutableStateFlow("")
     val homeSearchQuery: StateFlow<String> = _homeSearchQuery.asStateFlow()
 
@@ -90,7 +87,6 @@ class MusicPlayerViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    // Librería
     private val _librarySearchQuery = MutableStateFlow("")
     val librarySearchQuery: StateFlow<String> = _librarySearchQuery.asStateFlow()
 
@@ -114,7 +110,6 @@ class MusicPlayerViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    // Favoritos e Historial
     val favoriteIds: StateFlow<Set<String>> = getFavoriteIdsUseCase()
     
     val recentlyPlayed: StateFlow<List<Song>> = combine(_allSongs, getRecentlyPlayedIdsUseCase()) { songs, ids ->
@@ -236,7 +231,6 @@ class MusicPlayerViewModel(
     fun toggleFavorite(song: Song?) { song?.let { toggleFavoriteUseCase(it.id) } }
     fun seekTo(position: Float) { musicService.seekTo((position * _duration.value).toLong()) }
     
-    // RESTAURADO: toggleShuffle y toggleRepeatMode
     fun toggleShuffle() { 
         _isShuffleEnabled.value = !_isShuffleEnabled.value
         if (_isShuffleEnabled.value) {
@@ -269,6 +263,26 @@ class MusicPlayerViewModel(
         viewModelScope.launch { musicService.currentPosition.collect { _currentPosition.value = it } }
         viewModelScope.launch { musicService.duration.collect { _duration.value = it } }
         viewModelScope.launch { musicService.songCompleted.collect { nextSong() } }
+
+        // --- UNIFICACIÓN CON NOTIFICACIÓN ---
+        viewModelScope.launch { 
+            musicService.skipNextEvent.collect { nextSong() } 
+        }
+        viewModelScope.launch { 
+            musicService.skipPreviousEvent.collect { previousSong() } 
+        }
+        viewModelScope.launch { 
+            musicService.favoriteEvent.collect { toggleFavorite(_currentSong.value) } 
+        }
+        
+        // Actualizar el estado de favorito en la notificación cuando cambie la canción o los favoritos
+        viewModelScope.launch {
+            combine(_currentSong, favoriteIds) { song, ids ->
+                song?.id in ids
+            }.collect { isFav ->
+                musicService.updateFavoriteState(isFav)
+            }
+        }
     }
 
     override fun onCleared() { musicService.release(); super.onCleared() }
