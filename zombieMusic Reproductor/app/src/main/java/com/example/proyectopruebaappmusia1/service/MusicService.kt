@@ -31,6 +31,9 @@ class MusicService : MediaSessionService() {
         const val ACTION_PREVIOUS = "com.example.proyectopruebaappmusia1.PREVIOUS"
         const val ACTION_FAVORITE = "com.example.proyectopruebaappmusia1.FAVORITE"
         
+        // Comandos personalizados para comunicación directa con el controlador
+        const val CUSTOM_COMMAND_NEXT = "ACTION_NEXT"
+        const val CUSTOM_COMMAND_PREVIOUS = "ACTION_PREVIOUS"
         const val CUSTOM_COMMAND_FAVORITE = "ACTION_FAVORITE"
         const val CUSTOM_COMMAND_CLOSE = "ACTION_CLOSE"
         const val CUSTOM_COMMAND_UPDATE_FAVORITE = "UPDATE_FAVORITE_STATE"
@@ -50,15 +53,28 @@ class MusicService : MediaSessionService() {
             .setAudioAttributes(audioAttributes, true)
             .build()
 
-        val localForwardingPlayer = object : ForwardingPlayer(exoPlayer) {
+        // El ForwardingPlayer permite "engañar" al sistema para habilitar botones
+        val forwardingPlayer = object : ForwardingPlayer(exoPlayer) {
             override fun getAvailableCommands(): Player.Commands {
                 return super.getAvailableCommands().buildUpon()
                     .add(Player.COMMAND_SEEK_TO_NEXT)
                     .add(Player.COMMAND_SEEK_TO_PREVIOUS)
                     .build()
             }
-            override fun seekToNext() = triggerAction(ACTION_NEXT)
-            override fun seekToPrevious() = triggerAction(ACTION_PREVIOUS)
+
+            // Android comprueba estos métodos para mostrar/ocultar botones en la notificación
+            override fun hasNextMediaItem(): Boolean = true
+            override fun hasPreviousMediaItem(): Boolean = true
+
+            override fun seekToNext() {
+                sendCustomEvent(CUSTOM_COMMAND_NEXT)
+                triggerAction(ACTION_NEXT)
+            }
+
+            override fun seekToPrevious() {
+                sendCustomEvent(CUSTOM_COMMAND_PREVIOUS)
+                triggerAction(ACTION_PREVIOUS)
+            }
         }
 
         val pendingIntent = PendingIntent.getActivity(
@@ -66,7 +82,7 @@ class MusicService : MediaSessionService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        mediaSession = MediaSession.Builder(this, localForwardingPlayer)
+        mediaSession = MediaSession.Builder(this, forwardingPlayer)
             .setId("ZombieMusicSession")
             .setSessionActivity(pendingIntent)
             .setCallback(CustomSessionCallback())
@@ -78,6 +94,8 @@ class MusicService : MediaSessionService() {
     private inner class CustomSessionCallback : MediaSession.Callback {
         override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
             val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                .add(SessionCommand(CUSTOM_COMMAND_NEXT, Bundle.EMPTY))
+                .add(SessionCommand(CUSTOM_COMMAND_PREVIOUS, Bundle.EMPTY))
                 .add(SessionCommand(CUSTOM_COMMAND_FAVORITE, Bundle.EMPTY))
                 .add(SessionCommand(CUSTOM_COMMAND_CLOSE, Bundle.EMPTY))
                 .add(SessionCommand(CUSTOM_COMMAND_UPDATE_FAVORITE, Bundle.EMPTY))
@@ -97,7 +115,10 @@ class MusicService : MediaSessionService() {
 
         override fun onCustomCommand(session: MediaSession, controller: MediaSession.ControllerInfo, customCommand: SessionCommand, args: Bundle): ListenableFuture<SessionResult> {
             when (customCommand.customAction) {
-                CUSTOM_COMMAND_FAVORITE -> triggerAction(ACTION_FAVORITE)
+                CUSTOM_COMMAND_FAVORITE -> {
+                    sendCustomEvent(CUSTOM_COMMAND_FAVORITE)
+                    triggerAction(ACTION_FAVORITE)
+                }
                 CUSTOM_COMMAND_CLOSE -> {
                     exoPlayer.stop()
                     stopSelf()
@@ -108,6 +129,13 @@ class MusicService : MediaSessionService() {
                 }
             }
             return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+        }
+    }
+
+    private fun sendCustomEvent(action: String) {
+        mediaSession?.let { session ->
+            val command = SessionCommand(action, Bundle.EMPTY)
+            session.broadcastCustomCommand(command, Bundle.EMPTY)
         }
     }
 

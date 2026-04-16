@@ -57,15 +57,18 @@ class MusicPlayerViewModel(
     private val _playbackQueue = MutableStateFlow<List<Song>>(emptyList())
     val playbackQueue: StateFlow<List<Song>> = _playbackQueue.asStateFlow()
 
+    // --- PLAYLISTS ---
     private val _homePlaylists = MutableStateFlow<List<Playlist>>(emptyList())
     val homePlaylists: StateFlow<List<Playlist>> = _homePlaylists.asStateFlow()
 
     private val _selectedPlaylist = MutableStateFlow<Playlist?>(null)
     val selectedPlaylist: StateFlow<Playlist?> = _selectedPlaylist.asStateFlow()
 
+    // --- FILTROS Y BÚSQUEDA ---
     private val _minDurationFilter = MutableStateFlow(prefs.getInt("min_duration_filter", 0))
     val minDurationFilter: StateFlow<Int> = _minDurationFilter.asStateFlow()
 
+    // Home
     private val _homeSearchQuery = MutableStateFlow("")
     val homeSearchQuery: StateFlow<String> = _homeSearchQuery.asStateFlow()
 
@@ -87,6 +90,7 @@ class MusicPlayerViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
+    // Librería
     private val _librarySearchQuery = MutableStateFlow("")
     val librarySearchQuery: StateFlow<String> = _librarySearchQuery.asStateFlow()
 
@@ -110,6 +114,7 @@ class MusicPlayerViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
+    // Favoritos e Historial
     val favoriteIds: StateFlow<Set<String>> = getFavoriteIdsUseCase()
     
     val recentlyPlayed: StateFlow<List<Song>> = combine(_allSongs, getRecentlyPlayedIdsUseCase()) { songs, ids ->
@@ -193,15 +198,20 @@ class MusicPlayerViewModel(
         if (playlist.songs.isEmpty()) return
         val newQueue = if (shuffle) playlist.songs.shuffled() else playlist.songs
         _playbackQueue.value = newQueue
-        selectSong(newQueue.first(), autoPlay = true, newQueue = newQueue)
+        _currentSong.value = newQueue.first()
+        musicService.loadPlaylist(newQueue, 0, autoPlay = true)
     }
 
     fun selectSong(song: Song, autoPlay: Boolean = true, fromUserTap: Boolean = false, newQueue: List<Song>? = null) {
         _currentSong.value = song
         newQueue?.let { _playbackQueue.value = it }
         addRecentlyPlayedUseCase(song.id)
-        musicService.loadSong(song.filePath, song.title, song.artist)
-        if (autoPlay) musicService.play()
+        val queue = _playbackQueue.value
+        val index = queue.indexOf(song)
+        if (index != -1) {
+            // CORREGIDO: Se cambió loadQueue por loadPlaylist (nombre correcto en MusicPlayerService)
+            musicService.loadPlaylist(queue, index, autoPlay = autoPlay)
+        }
     }
 
     fun togglePlayPause() = musicService.togglePlayPause()
@@ -263,6 +273,19 @@ class MusicPlayerViewModel(
         viewModelScope.launch { musicService.currentPosition.collect { _currentPosition.value = it } }
         viewModelScope.launch { musicService.duration.collect { _duration.value = it } }
         viewModelScope.launch { musicService.songCompleted.collect { nextSong() } }
+
+        // --- SINCRONIZACIÓN CON COLA NATIVA ---
+        viewModelScope.launch {
+            musicService.currentMediaId.collect { mediaId ->
+                if (mediaId != null) {
+                    val song = _playbackQueue.value.find { it.id == mediaId }
+                    if (song != null && song.id != _currentSong.value?.id) {
+                        _currentSong.value = song
+                        addRecentlyPlayedUseCase(song.id)
+                    }
+                }
+            }
+        }
 
         // --- UNIFICACIÓN CON NOTIFICACIÓN ---
         viewModelScope.launch { 

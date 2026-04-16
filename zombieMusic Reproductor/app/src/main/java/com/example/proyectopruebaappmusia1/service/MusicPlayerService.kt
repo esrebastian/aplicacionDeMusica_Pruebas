@@ -2,6 +2,7 @@ package com.example.proyectopruebaappmusia1.service
 
 import android.content.BroadcastReceiver
 import android.content.ComponentName
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -14,7 +15,10 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
+import com.example.proyectopruebaappmusia1.domain.model.Song
+import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +34,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Cliente para el MusicService. Se encarga de conectar el ViewModel con el servicio real.
+ * Optimizado para que los controles de notificación funcionen en dispositivos modernos (Samsung A24, etc).
  */
 class MusicPlayerService(private val context: Context) {
 
@@ -37,10 +42,8 @@ class MusicPlayerService(private val context: Context) {
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
     
-    // Almacena una canción que se intentó cargar antes de que el controlador estuviera listo
-    private var pendingSong: PendingSong? = null
-
-    private data class PendingSong(val filePath: String, val title: String, val artist: String, val artworkUri: Uri?)
+    private var pendingPlaylist: PendingPlaylist? = null
+    private data class PendingPlaylist(val songs: List<Song>, val startIndex: Int, val autoPlay: Boolean)
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -50,6 +53,9 @@ class MusicPlayerService(private val context: Context) {
 
     private val _duration = MutableStateFlow(0L)
     val duration: StateFlow<Long> = _duration.asStateFlow()
+
+    private val _currentMediaId = MutableStateFlow<String?>(null)
+    val currentMediaId: StateFlow<String?> = _currentMediaId.asStateFlow()
 
     private val _songCompleted = Channel<Unit>(Channel.BUFFERED)
     val songCompleted = _songCompleted.receiveAsFlow()
@@ -66,42 +72,50 @@ class MusicPlayerService(private val context: Context) {
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                MusicService.ACTION_NEXT -> {
-                    _skipNextEvent.trySend(Unit)
-                }
-                MusicService.ACTION_PREVIOUS -> {
-                    _skipPreviousEvent.trySend(Unit)
-                }
-                MusicService.ACTION_FAVORITE -> {
-                    _favoriteEvent.trySend(Unit)
-                }
+                MusicService.ACTION_NEXT -> _skipNextEvent.trySend(Unit)
+                MusicService.ACTION_PREVIOUS -> _skipPreviousEvent.trySend(Unit)
+                MusicService.ACTION_FAVORITE -> _favoriteEvent.trySend(Unit)
             }
         }
     }
 
     init {
         val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
-        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        
+        controllerFuture = MediaController.Builder(context, sessionToken)
+            .setListener(object : MediaController.Listener {
+                override fun onCustomCommand(
+                    controller: MediaController,
+                    command: SessionCommand,
+                    args: Bundle
+                ): ListenableFuture<SessionResult> {
+                    when (command.customAction) {
+                        MusicService.CUSTOM_COMMAND_NEXT -> _skipNextEvent.trySend(Unit)
+                        MusicService.CUSTOM_COMMAND_PREVIOUS -> _skipPreviousEvent.trySend(Unit)
+                        MusicService.CUSTOM_COMMAND_FAVORITE -> _favoriteEvent.trySend(Unit)
+                    }
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+            })
+            .buildAsync()
+
         controllerFuture?.addListener({
             mediaController = controllerFuture?.get()
             setupController()
         }, MoreExecutors.directExecutor())
 
-        // Registrar receiver para los botones de la notificación
         val filter = IntentFilter().apply {
             addAction(MusicService.ACTION_NEXT)
             addAction(MusicService.ACTION_PREVIOUS)
             addAction(MusicService.ACTION_FAVORITE)
         }
         
-        // Usar RECEIVER_EXPORTED para permitir que el Broadcast enviado por el Servicio llegue aquí
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             context.registerReceiver(receiver, filter)
         }
 
-        // Actualizar posición periódicamente
         scope.launch {
             while (true) {
                 delay(200)
@@ -115,20 +129,24 @@ class MusicPlayerService(private val context: Context) {
     }
 
     private fun setupController() {
-        // Cargar canción pendiente si existe
-        pendingSong?.let { p ->
-            loadSong(p.filePath, p.title, p.artist, p.artworkUri)
-            pendingSong = null
+        pendingPlaylist?.let { p ->
+            loadPlaylist(p.songs, p.startIndex, p.autoPlay)
+            pendingPlaylist = null
         }
 
         mediaController?.let { controller ->
             _isPlaying.value = controller.isPlaying
             _currentPosition.value = controller.currentPosition.coerceAtLeast(0L)
             _duration.value = controller.duration.coerceAtLeast(0L)
+            _currentMediaId.value = controller.currentMediaItem?.mediaId
             
             controller.addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _isPlaying.value = isPlaying
+                }
+
+                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    _currentMediaId.value = mediaItem?.mediaId
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -144,9 +162,52 @@ class MusicPlayerService(private val context: Context) {
         }
     }
 
-    /**
-     * Envía un comando al servicio para actualizar el icono de favorito en la notificación.
-     */
+    fun loadPlaylist(songs: List<Song>, startIndex: Int, autoPlay: Boolean = true) {
+        val controller = mediaController
+        if (controller == null) {
+            pendingPlaylist = PendingPlaylist(songs, startIndex, autoPlay)
+            return
+        }
+
+        val mediaItems = songs.map { song ->
+            val artworkUri = if (!song.albumArt.isNullOrBlank() && song.albumArt != "0") {
+                ContentUris.withAppendedId(
+                    Uri.parse("content://media/external/audio/albumart"),
+                    song.albumArt.toLongOrNull() ?: 0L
+                )
+            } else null
+
+            val metadata = MediaMetadata.Builder()
+                .setTitle(song.title)
+                .setArtist(song.artist)
+                .setArtworkUri(artworkUri)
+                .build()
+
+            MediaItem.Builder()
+                .setMediaId(song.id)
+                .setUri(song.filePath)
+                .setMediaMetadata(metadata)
+                .build()
+        }
+
+        controller.setMediaItems(mediaItems, startIndex, 0L)
+        controller.prepare()
+        if (autoPlay) controller.play()
+    }
+
+    fun play() = mediaController?.play()
+    fun pause() = mediaController?.pause()
+    fun togglePlayPause() {
+        if (mediaController?.isPlaying == true) pause() else play()
+    }
+
+    fun seekToNext() = mediaController?.seekToNext()
+    fun seekToPrevious() = mediaController?.seekToPrevious()
+
+    fun seekTo(position: Long) {
+        mediaController?.seekTo(position)
+    }
+
     fun updateFavoriteState(isFavorite: Boolean) {
         val controller = mediaController ?: return
         val args = Bundle().apply {
@@ -158,52 +219,8 @@ class MusicPlayerService(private val context: Context) {
         )
     }
 
-    fun loadSong(filePath: String, title: String, artist: String, artworkUri: Uri? = null) {
-        val controller = mediaController
-        if (controller == null) {
-            pendingSong = PendingSong(filePath, title, artist, artworkUri)
-            return
-        }
-
-        // Verificar si la canción ya está cargada para no reiniciarla
-        val currentMediaItem = controller.currentMediaItem
-        if (currentMediaItem?.localConfiguration?.uri.toString() == filePath) {
-            return
-        }
-
-        val metadata = MediaMetadata.Builder()
-            .setTitle(title)
-            .setArtist(artist)
-            .setArtworkUri(artworkUri)
-            .build()
-
-        val mediaItem = MediaItem.Builder()
-            .setUri(filePath)
-            .setMediaMetadata(metadata)
-            .build()
-
-        controller.setMediaItem(mediaItem)
-        controller.prepare()
-    }
-
-    fun play() = mediaController?.play()
-    fun pause() = mediaController?.pause()
-    fun togglePlayPause() {
-        if (mediaController?.isPlaying == true) pause() else play()
-    }
-
-    fun seekTo(position: Long) {
-        mediaController?.seekTo(position)
-    }
-
     fun release() {
-        try {
-            context.unregisterReceiver(receiver)
-        } catch (e: Exception) {
-            // Ya desregistrado o no registrado
-        }
-        controllerFuture?.let {
-            MediaController.releaseFuture(it)
-        }
+        try { context.unregisterReceiver(receiver) } catch (e: Exception) {}
+        controllerFuture?.let { MediaController.releaseFuture(it) }
     }
 }
