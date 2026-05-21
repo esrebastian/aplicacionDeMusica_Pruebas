@@ -63,6 +63,7 @@ class MusicPlayerViewModel(
 
     private val _selectedPlaylist = MutableStateFlow<Playlist?>(null)
     val selectedPlaylist: StateFlow<Playlist?> = _selectedPlaylist.asStateFlow()
+    val customPlaylists: StateFlow<List<Playlist>> = playlistRepository.customPlaylists
 
     // --- FILTROS Y BÚSQUEDA ---
     private val _minDurationFilter = MutableStateFlow(prefs.getInt("min_duration_filter", 0))
@@ -191,7 +192,9 @@ class MusicPlayerViewModel(
         prefs.edit().putInt("min_duration_filter", seconds).apply()
     }
 
-    fun createPlaylist(name: String) { playlistRepository.createPlaylist(name) }
+    fun createPlaylist(name: String): String = playlistRepository.createPlaylist(name)
+    fun addSongToPlaylist(playlistId: String, song: Song) { playlistRepository.addSongToPlaylist(playlistId, song) }
+    fun createPlaylistWithSong(name: String, song: Song): String = playlistRepository.createPlaylistWithSong(name, song)
     fun selectPlaylistForDetail(playlist: Playlist?) { _selectedPlaylist.value = playlist }
 
     fun playPlaylist(playlist: Playlist, shuffle: Boolean = false) {

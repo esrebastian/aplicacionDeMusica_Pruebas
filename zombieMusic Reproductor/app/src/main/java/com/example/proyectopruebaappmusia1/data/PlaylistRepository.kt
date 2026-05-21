@@ -33,16 +33,18 @@ class PlaylistRepository(private val prefs: SharedPreferences) {
         _customPlaylists.value = playlists
     }
 
-    fun createPlaylist(name: String) {
+    fun createPlaylist(name: String): String {
         val current = loadPlaylists().toMutableList()
+        val playlistId = "custom_${System.currentTimeMillis()}"
         val newPlaylist = Playlist(
-            id = "custom_${System.currentTimeMillis()}",
+            id = playlistId,
             name = name,
             songCount = 0,
             songs = emptyList()
         )
         current.add(newPlaylist)
         savePlaylists(current)
+        return playlistId
     }
 
     fun addSongToPlaylist(playlistId: String, song: Song) {
@@ -58,6 +60,12 @@ class PlaylistRepository(private val prefs: SharedPreferences) {
             }
         }
         savePlaylists(current)
+    }
+
+    fun createPlaylistWithSong(name: String, song: Song): String {
+        val playlistId = createPlaylist(name)
+        addSongToPlaylist(playlistId, song)
+        return playlistId
     }
 
     companion object {

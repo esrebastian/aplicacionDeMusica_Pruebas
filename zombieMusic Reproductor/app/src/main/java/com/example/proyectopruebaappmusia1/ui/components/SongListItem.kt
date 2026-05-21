@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.Favorite
@@ -30,6 +31,7 @@ fun SongListItem(
     onClick: () -> Unit,
     isFavorite: Boolean = false,
     onFavoriteClick: (() -> Unit)? = null,
+    onAddToPlaylistClick: (() -> Unit)? = null,
     onDeleteClick: (() -> Unit)? = null
 ) {
     Row(
@@ -73,6 +75,19 @@ fun SongListItem(
                     if (isFavorite) Icons.Default.Favorite else Icons.Outlined.Favorite,
                     contentDescription = stringResource(R.string.favorite_content_description),
                     tint = if (isFavorite) AccentGreen else SecondaryText,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+        if (onAddToPlaylistClick != null) {
+            IconButton(
+                onClick = { onAddToPlaylistClick() },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Agregar a playlist",
+                    tint = SecondaryText,
                     modifier = Modifier.size(22.dp)
                 )
             }

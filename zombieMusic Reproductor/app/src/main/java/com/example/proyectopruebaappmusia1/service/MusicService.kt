@@ -68,12 +68,10 @@ class MusicService : MediaSessionService() {
 
             override fun seekToNext() {
                 sendCustomEvent(CUSTOM_COMMAND_NEXT)
-                triggerAction(ACTION_NEXT)
             }
 
             override fun seekToPrevious() {
                 sendCustomEvent(CUSTOM_COMMAND_PREVIOUS)
-                triggerAction(ACTION_PREVIOUS)
             }
         }
 
@@ -117,7 +115,6 @@ class MusicService : MediaSessionService() {
             when (customCommand.customAction) {
                 CUSTOM_COMMAND_FAVORITE -> {
                     sendCustomEvent(CUSTOM_COMMAND_FAVORITE)
-                    triggerAction(ACTION_FAVORITE)
                 }
                 CUSTOM_COMMAND_CLOSE -> {
                     exoPlayer.stop()

@@ -19,6 +19,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.proyectopruebaappmusia1.domain.model.Playlist
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.ui.components.SongListItem
@@ -35,11 +36,13 @@ fun LibraryScreen(
     val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle(initialValue = emptySet())
     val libraryFilter by viewModel.libraryFilter.collectAsStateWithLifecycle(initialValue = "De la A a la Z")
     val searchQuery by viewModel.librarySearchQuery.collectAsStateWithLifecycle(initialValue = "")
+    val customPlaylists by viewModel.customPlaylists.collectAsStateWithLifecycle(initialValue = emptyList())
     
     LibraryContent(
         songs = songs,
         currentSong = currentSong,
         favoriteIds = favoriteIds,
+        customPlaylists = customPlaylists,
         libraryFilter = libraryFilter,
         searchQuery = searchQuery,
         onSettingsClick = onSettingsClick,
@@ -47,6 +50,8 @@ fun LibraryScreen(
         onFilterSelect = { viewModel.setLibraryFilter(it) },
         onSongClick = { song -> viewModel.selectSong(song, newQueue = songs) },
         onFavoriteClick = { viewModel.toggleFavorite(it) },
+        onAddToPlaylist = { playlistId, song -> viewModel.addSongToPlaylist(playlistId, song) },
+        onCreatePlaylistWithSong = { name, song -> viewModel.createPlaylistWithSong(name, song) },
         modifier = modifier
     )
 }
@@ -57,6 +62,7 @@ fun LibraryContent(
     songs: List<Song>,
     currentSong: Song?,
     favoriteIds: Set<String>,
+    customPlaylists: List<Playlist>,
     libraryFilter: String,
     searchQuery: String,
     onSettingsClick: () -> Unit,
@@ -64,9 +70,12 @@ fun LibraryContent(
     onFilterSelect: (String) -> Unit,
     onSongClick: (Song) -> Unit,
     onFavoriteClick: (Song) -> Unit,
+    onAddToPlaylist: (String, Song) -> Unit,
+    onCreatePlaylistWithSong: (String, Song) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showFilterMenu by remember { mutableStateOf(false) }
+    var songToAdd by remember { mutableStateOf<Song?>(null) }
     val listState = rememberLazyListState()
     val filterOptions = listOf("De la A a la Z", "Artista", "Más recientes", "Duración más larga")
 
@@ -156,11 +165,95 @@ fun LibraryContent(
                     isCurrent = song.id == currentSong?.id,
                     isFavorite = song.id in favoriteIds,
                     onFavoriteClick = { onFavoriteClick(song) },
+                    onAddToPlaylistClick = { songToAdd = song },
                     onClick = { onSongClick(song) }
                 )
             }
         }
     }
+
+    songToAdd?.let { song ->
+        AddToPlaylistDialog(
+            song = song,
+            playlists = customPlaylists,
+            onDismiss = { songToAdd = null },
+            onAddToPlaylist = { playlistId ->
+                onAddToPlaylist(playlistId, song)
+                songToAdd = null
+            },
+            onCreatePlaylistWithSong = { name ->
+                onCreatePlaylistWithSong(name, song)
+                songToAdd = null
+            }
+        )
+    }
+}
+
+@Composable
+fun AddToPlaylistDialog(
+    song: Song,
+    playlists: List<Playlist>,
+    onDismiss: () -> Unit,
+    onAddToPlaylist: (String) -> Unit,
+    onCreatePlaylistWithSong: (String) -> Unit
+) {
+    var newPlaylistName by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = CardGreenBg,
+        title = { Text("Agregar a playlist", color = Color.White) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(song.title, color = SecondaryText, fontSize = 14.sp, maxLines = 1)
+
+                if (playlists.isNotEmpty()) {
+                    playlists.forEach { playlist ->
+                        TextButton(
+                            onClick = { onAddToPlaylist(playlist.id) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                playlist.name,
+                                color = AccentGreen,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text("${playlist.songCount}", color = SecondaryText)
+                        }
+                    }
+                } else {
+                    Text("Crea una playlist y la agrego de una.", color = SecondaryText, fontSize = 14.sp)
+                }
+
+                TextField(
+                    value = newPlaylistName,
+                    onValueChange = { newPlaylistName = it },
+                    placeholder = { Text("Nueva playlist", color = SecondaryText) },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = DarkGreenBg,
+                        unfocusedContainerColor = DarkGreenBg,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = AccentGreen,
+                        focusedIndicatorColor = AccentGreen
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onCreatePlaylistWithSong(newPlaylistName.trim()) },
+                enabled = newPlaylistName.isNotBlank()
+            ) {
+                Text("CREAR Y AGREGAR", color = AccentGreen, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCELAR", color = SecondaryText)
+            }
+        }
+    )
 }
 
 @Preview(showBackground = true)
@@ -174,13 +267,16 @@ fun LibraryScreenPreview() {
             ),
             currentSong = null,
             favoriteIds = setOf("1"),
+            customPlaylists = emptyList(),
             libraryFilter = "De la A a la Z",
             searchQuery = "",
             onSettingsClick = {},
             onSearchChange = {},
             onFilterSelect = {},
             onSongClick = {},
-            onFavoriteClick = {}
+            onFavoriteClick = {},
+            onAddToPlaylist = { _, _ -> },
+            onCreatePlaylistWithSong = { _, _ -> }
         )
     }
 }

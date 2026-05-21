@@ -40,17 +40,30 @@ fun PlaylistDetailScreen(
 ) {
     val currentSong by viewModel.currentSong.collectAsState()
     val favoriteIds by viewModel.favoriteIds.collectAsState()
+    val allSongs by viewModel.playlist.collectAsState()
+    var showAddSongsDialog by remember { mutableStateOf(false) }
 
     PlaylistDetailContent(
         playlist = playlist,
         currentSong = currentSong,
         favoriteIds = favoriteIds,
+        canEditSongs = playlist.id.startsWith("custom_"),
         onBack = onBack,
         onPlayClick = { viewModel.playPlaylist(playlist, shuffle = false) },
         onShuffleClick = { viewModel.playPlaylist(playlist, shuffle = true) },
         onSongClick = { song -> viewModel.selectSong(song, newQueue = playlist.songs) },
-        onFavoriteClick = { viewModel.toggleFavorite(it) }
+        onFavoriteClick = { viewModel.toggleFavorite(it) },
+        onAddSongsClick = { showAddSongsDialog = true }
     )
+
+    if (showAddSongsDialog) {
+        AddSongsToPlaylistDialog(
+            playlist = playlist,
+            songs = allSongs,
+            onDismiss = { showAddSongsDialog = false },
+            onAddSong = { song -> viewModel.addSongToPlaylist(playlist.id, song) }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,11 +72,13 @@ fun PlaylistDetailContent(
     playlist: Playlist,
     currentSong: Song?,
     favoriteIds: Set<String>,
+    canEditSongs: Boolean,
     onBack: () -> Unit,
     onPlayClick: () -> Unit,
     onShuffleClick: () -> Unit,
     onSongClick: (Song) -> Unit,
-    onFavoriteClick: (Song) -> Unit
+    onFavoriteClick: (Song) -> Unit,
+    onAddSongsClick: () -> Unit
 ) {
     val scrollState = rememberLazyListState()
     val headerHeight = 300.dp
@@ -146,19 +161,52 @@ fun PlaylistDetailContent(
                         ) {
                             Icon(Icons.Default.Shuffle, null, tint = Color.White)
                         }
+
+                        if (canEditSongs) {
+                            IconButton(
+                                onClick = onAddSongsClick,
+                                modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape).size(48.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Agregar canciones", tint = Color.White)
+                            }
+                        }
                     }
                 }
             }
 
-            items(playlist.songs) { song ->
-                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    SongListItem(
-                        song = song,
-                        isCurrent = song.id == currentSong?.id,
-                        isFavorite = song.id in favoriteIds,
-                        onFavoriteClick = { onFavoriteClick(song) },
-                        onClick = { onSongClick(song) }
-                    )
+            if (playlist.songs.isEmpty() && canEditSongs) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("Esta playlist esta vacia", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Agrega canciones desde aqui o desde Biblioteca.", color = SecondaryText, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = onAddSongsClick,
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentGreen)
+                        ) {
+                            Icon(Icons.Default.Add, null, tint = DarkGreenBg)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Agregar canciones", color = DarkGreenBg, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else {
+                items(playlist.songs) { song ->
+                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        SongListItem(
+                            song = song,
+                            isCurrent = song.id == currentSong?.id,
+                            isFavorite = song.id in favoriteIds,
+                            onFavoriteClick = { onFavoriteClick(song) },
+                            onClick = { onSongClick(song) }
+                        )
+                    }
                 }
             }
         }
@@ -186,6 +234,48 @@ fun PlaylistDetailContent(
     }
 }
 
+@Composable
+fun AddSongsToPlaylistDialog(
+    playlist: Playlist,
+    songs: List<Song>,
+    onDismiss: () -> Unit,
+    onAddSong: (Song) -> Unit
+) {
+    val playlistSongIds = remember(playlist.songs) { playlist.songs.map { it.id }.toSet() }
+    val availableSongs = remember(songs, playlistSongIds) { songs.filterNot { it.id in playlistSongIds } }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = CardGreenBg,
+        title = { Text("Agregar canciones", color = Color.White) },
+        text = {
+            if (availableSongs.isEmpty()) {
+                Text("No hay canciones pendientes para agregar.", color = SecondaryText)
+            } else {
+                LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                    items(availableSongs, key = { it.id }) { song ->
+                        TextButton(
+                            onClick = { onAddSong(song) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(song.title, color = Color.White, maxLines = 1)
+                                Text(song.artist, color = SecondaryText, fontSize = 12.sp, maxLines = 1)
+                            }
+                            Icon(Icons.Default.Add, null, tint = AccentGreen)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("LISTO", color = AccentGreen, fontWeight = FontWeight.Bold)
+            }
+        }
+    )
+}
+
 @Preview(showBackground = true)
 @Composable
 fun PlaylistDetailPreview() {
@@ -199,11 +289,13 @@ fun PlaylistDetailPreview() {
             playlist = Playlist("1", "Rock Classics", 3, null, dummySongs),
             currentSong = dummySongs[0],
             favoriteIds = setOf("1"),
+            canEditSongs = true,
             onBack = {},
             onPlayClick = {},
             onShuffleClick = {},
             onSongClick = {},
-            onFavoriteClick = {}
+            onFavoriteClick = {},
+            onAddSongsClick = {}
         )
     }
 }
