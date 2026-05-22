@@ -91,7 +91,7 @@ fun LibraryContent(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("Tu Librería", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text("Tu Librería", color = PrimaryText, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             
             IconButton(
                 onClick = onSettingsClick,
@@ -122,8 +122,8 @@ fun LibraryContent(
                     unfocusedContainerColor = CardGreenBg,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
+                    focusedTextColor = PrimaryText,
+                    unfocusedTextColor = PrimaryText
                 ),
                 leadingIcon = { Icon(Icons.Default.Search, null, tint = SecondaryText) }
             )
@@ -143,7 +143,7 @@ fun LibraryContent(
                 ) {
                     filterOptions.forEach { option ->
                         DropdownMenuItem(
-                            text = { Text(option, color = if (libraryFilter == option) AccentGreen else Color.White) },
+                            text = { Text(option, color = if (libraryFilter == option) AccentGreen else PrimaryText) },
                             onClick = { 
                                 onFilterSelect(option)
                                 showFilterMenu = false 
@@ -202,7 +202,7 @@ fun AddToPlaylistDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = CardGreenBg,
-        title = { Text("Agregar a playlist", color = Color.White) },
+        title = { Text("Agregar a playlist", color = PrimaryText) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(song.title, color = SecondaryText, fontSize = 14.sp, maxLines = 1)
@@ -232,8 +232,8 @@ fun AddToPlaylistDialog(
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = DarkGreenBg,
                         unfocusedContainerColor = DarkGreenBg,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        focusedTextColor = PrimaryText,
+                        unfocusedTextColor = PrimaryText,
                         cursorColor = AccentGreen,
                         focusedIndicatorColor = AccentGreen
                     )

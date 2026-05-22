@@ -129,7 +129,7 @@ fun PlaylistDetailContent(
                 Column(modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 20.dp)) {
                     Text(
                         text = playlist.name,
-                        color = Color.White,
+                        color = PrimaryText,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -157,17 +157,17 @@ fun PlaylistDetailContent(
                         
                         IconButton(
                             onClick = onShuffleClick,
-                            modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape).size(48.dp)
+                            modifier = Modifier.background(PrimaryText.copy(alpha = 0.1f), CircleShape).size(48.dp)
                         ) {
-                            Icon(Icons.Default.Shuffle, null, tint = Color.White)
+                            Icon(Icons.Default.Shuffle, null, tint = PrimaryText)
                         }
 
                         if (canEditSongs) {
                             IconButton(
                                 onClick = onAddSongsClick,
-                                modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape).size(48.dp)
+                                modifier = Modifier.background(PrimaryText.copy(alpha = 0.1f), CircleShape).size(48.dp)
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = "Agregar canciones", tint = Color.White)
+                                Icon(Icons.Default.Add, contentDescription = "Agregar canciones", tint = PrimaryText)
                             }
                         }
                     }
@@ -182,7 +182,7 @@ fun PlaylistDetailContent(
                             .padding(horizontal = 20.dp, vertical = 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("Esta playlist esta vacia", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Esta playlist esta vacia", color = PrimaryText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("Agrega canciones desde aqui o desde Biblioteca.", color = SecondaryText, fontSize = 14.sp)
                         Spacer(modifier = Modifier.height(16.dp))
@@ -214,17 +214,17 @@ fun PlaylistDetailContent(
         TopAppBar(
             title = {
                 if (collapseFactor.value > 0.8f) {
-                    Text(playlist.name, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(playlist.name, color = PrimaryText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
             },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, null, tint = Color.White)
+                    Icon(Icons.Default.ArrowBack, null, tint = PrimaryText)
                 }
             },
             actions = {
                 IconButton(onClick = { /* Menú de opciones */ }) {
-                    Icon(Icons.Default.MoreVert, null, tint = Color.White)
+                    Icon(Icons.Default.MoreVert, null, tint = PrimaryText)
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -247,7 +247,7 @@ fun AddSongsToPlaylistDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = CardGreenBg,
-        title = { Text("Agregar canciones", color = Color.White) },
+        title = { Text("Agregar canciones", color = PrimaryText) },
         text = {
             if (availableSongs.isEmpty()) {
                 Text("No hay canciones pendientes para agregar.", color = SecondaryText)
@@ -259,7 +259,7 @@ fun AddSongsToPlaylistDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(song.title, color = Color.White, maxLines = 1)
+                                Text(song.title, color = PrimaryText, maxLines = 1)
                                 Text(song.artist, color = SecondaryText, fontSize = 12.sp, maxLines = 1)
                             }
                             Icon(Icons.Default.Add, null, tint = AccentGreen)

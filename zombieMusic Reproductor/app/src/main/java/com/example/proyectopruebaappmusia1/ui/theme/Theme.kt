@@ -9,28 +9,34 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = DarkZombieMusicColors.accentGreen,
+    secondary = DarkZombieMusicColors.secondaryText,
+    tertiary = DarkZombieMusicColors.cardGreenBg,
+    background = DarkZombieMusicColors.darkGreenBg,
+    surface = DarkZombieMusicColors.cardGreenBg,
+    onPrimary = DarkZombieMusicColors.darkGreenBg,
+    onSecondary = DarkZombieMusicColors.primaryText,
+    onTertiary = DarkZombieMusicColors.primaryText,
+    onBackground = DarkZombieMusicColors.primaryText,
+    onSurface = DarkZombieMusicColors.primaryText
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = LightZombieMusicColors.accentGreen,
+    secondary = LightZombieMusicColors.secondaryText,
+    tertiary = LightZombieMusicColors.cardGreenBg,
+    background = LightZombieMusicColors.darkGreenBg,
+    surface = LightZombieMusicColors.cardGreenBg,
+    onPrimary = LightZombieMusicColors.darkGreenBg,
+    onSecondary = LightZombieMusicColors.primaryText,
+    onTertiary = LightZombieMusicColors.primaryText,
+    onBackground = LightZombieMusicColors.primaryText,
+    onSurface = LightZombieMusicColors.primaryText
 )
 
 @Composable
@@ -50,9 +56,13 @@ fun ProyectoPruebaAppMusia1Theme(
         else -> LightColorScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(
+        LocalZombieMusicColors provides if (darkTheme) DarkZombieMusicColors else LightZombieMusicColors
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

@@ -71,7 +71,7 @@ fun NowPlayingFullScreen(
                     title = { /* Empty title */ },
                     navigationIcon = {
                         IconButton(onClick = onClose) {
-                            Icon(Icons.Default.KeyboardArrowDown, "Cerrar", tint = Color.White, modifier = Modifier.size(32.dp))
+                            Icon(Icons.Default.KeyboardArrowDown, "Cerrar", tint = PrimaryText, modifier = Modifier.size(32.dp))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -103,7 +103,7 @@ fun NowPlayingFullScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = currentSong?.title ?: "Selecciona una canción",
-                            color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1
+                            color = PrimaryText, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1
                         )
                         Text(
                             text = currentSong?.artist ?: "Desconocido",
@@ -138,7 +138,7 @@ fun NowPlayingFullScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { viewModel.previousSong() }) {
-                        Icon(Icons.Default.SkipPrevious, null, tint = Color.White, modifier = Modifier.size(48.dp))
+                        Icon(Icons.Default.SkipPrevious, null, tint = PrimaryText, modifier = Modifier.size(48.dp))
                     }
                     Box(
                         modifier = Modifier.size(72.dp).clip(CircleShape).background(AccentGreen).clickable { viewModel.togglePlayPause() },
@@ -147,16 +147,16 @@ fun NowPlayingFullScreen(
                         Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = DarkGreenBg, modifier = Modifier.size(40.dp))
                     }
                     IconButton(onClick = { viewModel.nextSong() }) {
-                        Icon(Icons.Default.SkipNext, null, tint = Color.White, modifier = Modifier.size(48.dp))
+                        Icon(Icons.Default.SkipNext, null, tint = PrimaryText, modifier = Modifier.size(48.dp))
                     }
                 }
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     IconButton(onClick = { viewModel.toggleShuffle() }) {
-                        Icon(Icons.Default.Shuffle, null, tint = if (isShuffleEnabled) AccentGreen else Color.White)
+                        Icon(Icons.Default.Shuffle, null, tint = if (isShuffleEnabled) AccentGreen else PrimaryText)
                     }
                     IconButton(onClick = { showQueueSheet = true }) {
-                        Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = PrimaryText)
                     }
                 }
             }
@@ -178,7 +178,7 @@ fun QueueSheetContent(viewModel: MusicPlayerViewModel) {
     var showSleepTimerDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxHeight(0.8f).padding(16.dp)) {
-        Text("Fila de reproducción", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text("Fila de reproducción", color = PrimaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
         
         LazyColumn(modifier = Modifier.weight(1f)) {
@@ -190,7 +190,7 @@ fun QueueSheetContent(viewModel: MusicPlayerViewModel) {
                     AlbumArtImage(song.albumArt, null, Modifier.size(40.dp).clip(RoundedCornerShape(4.dp)))
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text(song.title, color = if (song.id == currentSong?.id) AccentGreen else Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(song.title, color = if (song.id == currentSong?.id) AccentGreen else PrimaryText, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(song.artist, color = SecondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
@@ -206,7 +206,7 @@ fun QueueSheetContent(viewModel: MusicPlayerViewModel) {
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 if (sleepTimerRemaining != null) "Apagado en ${TimeUtils.formatTimer(sleepTimerRemaining!!)}" else "Temporizador de apagado",
-                color = Color.White
+                color = PrimaryText
             )
         }
     }
@@ -224,11 +224,11 @@ fun SleepTimerDialog(onDismiss: () -> Unit, onSelectTime: (Int) -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = CardGreenBg,
-        title = { Text("Temporizador", color = Color.White) },
+        title = { Text("Temporizador", color = PrimaryText) },
         text = {
             Column {
                 listOf(0 to "Desactivado", 15 to "15 min", 30 to "30 min", 60 to "60 min").forEach { (mins, label) ->
-                    Text(label, color = Color.White, modifier = Modifier.fillMaxWidth().clickable { onSelectTime(mins); onDismiss() }.padding(16.dp))
+                    Text(label, color = PrimaryText, modifier = Modifier.fillMaxWidth().clickable { onSelectTime(mins); onDismiss() }.padding(16.dp))
                 }
             }
         },

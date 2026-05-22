@@ -57,7 +57,7 @@ fun ExploreScreen(
                                 text = title,
                                 fontSize = 14.sp,
                                 fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Normal,
-                                color = if (pagerState.currentPage == index) Color.White else SecondaryText
+                                color = if (pagerState.currentPage == index) PrimaryText else SecondaryText
                             )
                         }
                     )
@@ -74,15 +74,15 @@ fun ExploreScreen(
                 0 -> {
                     if (isGeneralBrowserActive) {
                         // Aquí irá el componente Browser
-                        Text("Navegador General", color = Color.White)
+                        Text("Navegador General", color = PrimaryText)
                     } else {
                         // Aquí irá el componente Search
-                        Text("Buscador Principal", color = Color.White)
+                        Text("Buscador Principal", color = PrimaryText)
                     }
                 }
-                1 -> Text("Navegador YouTube", color = Color.White)
-                2 -> Text("Sitios Sugeridos", color = Color.White)
-                3 -> Text("Lista de Descargas", color = Color.White)
+                1 -> Text("Navegador YouTube", color = PrimaryText)
+                2 -> Text("Sitios Sugeridos", color = PrimaryText)
+                3 -> Text("Lista de Descargas", color = PrimaryText)
             }
         }
     }

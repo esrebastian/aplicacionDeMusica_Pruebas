@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import com.example.proyectopruebaappmusia1.R
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.theme.AccentGreen
+import com.example.proyectopruebaappmusia1.ui.theme.PrimaryText
 import com.example.proyectopruebaappmusia1.ui.theme.SecondaryText
 import com.example.proyectopruebaappmusia1.util.TimeUtils
 
@@ -54,7 +55,7 @@ fun SongListItem(
         ) {
             Text(
                 text = song.title,
-                color = Color.White,
+                color = PrimaryText,
                 fontSize = 16.sp,
                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 1

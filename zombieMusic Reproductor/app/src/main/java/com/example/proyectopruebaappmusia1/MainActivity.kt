@@ -11,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -39,8 +40,35 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            ProyectoPruebaAppMusia1Theme {
-                val context = LocalContext.current
+            val context = LocalContext.current
+            val systemInDarkTheme = isSystemInDarkTheme()
+            val settingsPrefs = remember(context) {
+                context.getSharedPreferences("zombie_music_settings", MODE_PRIVATE)
+            }
+            var selectedTheme by remember {
+                mutableStateOf(settingsPrefs.getString("theme", "Automatico") ?: "Automatico")
+            }
+
+            DisposableEffect(settingsPrefs) {
+                val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+                    if (key == "theme") {
+                        selectedTheme = prefs.getString("theme", "Automatico") ?: "Automatico"
+                    }
+                }
+                settingsPrefs.registerOnSharedPreferenceChangeListener(listener)
+                onDispose { settingsPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
+            }
+
+            val useDarkTheme = when (selectedTheme) {
+                "Claro", "Light" -> false
+                "Oscuro", "Dark" -> true
+                else -> systemInDarkTheme
+            }
+
+            ProyectoPruebaAppMusia1Theme(
+                darkTheme = useDarkTheme,
+                dynamicColor = false
+            ) {
                 val factory = remember { ViewModelFactory(context) }
                 
                 val musicViewModel: MusicPlayerViewModel = viewModel(factory = factory)
@@ -196,13 +224,13 @@ fun PermissionExplanationDialog(onConfirm: () -> Unit) {
         onDismissRequest = { /* No permitir cerrar sin decidir */ },
         containerColor = CardGreenBg,
         title = { 
-            Text("¡Bienvenido a ZombieMusic!", color = Color.White, fontWeight = FontWeight.Bold) 
+            Text("¡Bienvenido a ZombieMusic!", color = PrimaryText, fontWeight = FontWeight.Bold) 
         },
         text = {
             Column {
                 Text(
                     "Para que tus reglas dominen la música, necesitamos permiso para:",
-                    color = Color.White,
+                    color = PrimaryText,
                     fontSize = 14.sp
                 )
                 Spacer(modifier = Modifier.height(12.dp))

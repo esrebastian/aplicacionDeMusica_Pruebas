@@ -65,14 +65,14 @@ fun MiniPlayer(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(song.title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text(song.title, color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                     Text(song.artist, color = SecondaryText, fontSize = 12.sp, maxLines = 1)
                 }
                 IconButton(onClick = onPlayPauseClick) {
-                    Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
+                    Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = null, tint = PrimaryText)
                 }
                 IconButton(onClick = onNextClick) {
-                    Icon(Icons.Default.SkipNext, contentDescription = null, tint = Color.White)
+                    Icon(Icons.Default.SkipNext, contentDescription = null, tint = PrimaryText)
                 }
             }
         }

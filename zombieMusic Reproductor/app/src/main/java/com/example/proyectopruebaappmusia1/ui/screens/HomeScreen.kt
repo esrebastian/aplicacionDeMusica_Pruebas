@@ -203,7 +203,7 @@ fun HomeHeader(onSettingsClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "ZombieMusic",
-                color = Color.White,
+                color = PrimaryText,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -220,14 +220,14 @@ fun HomeHeader(onSettingsClick: () -> Unit) {
 
 @Composable
 fun SectionTitle(title: String) {
-    Text(title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+    Text(title, color = PrimaryText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
 }
 
 @Composable
 fun RecentSongItem(song: Song, onClick: () -> Unit) {
     Column(modifier = Modifier.width(120.dp).clickable { onClick() }) {
         AlbumArtImage(song.albumArt, null, Modifier.size(120.dp).clip(RoundedCornerShape(16.dp)))
-        Text(song.title, color = Color.White, maxLines = 1, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Text(song.title, color = PrimaryText, maxLines = 1, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         Text(song.artist, color = SecondaryText, maxLines = 1, fontSize = 12.sp)
     }
 }
@@ -241,7 +241,7 @@ fun PlaylistItem(playlist: Playlist, onClick: () -> Unit) {
             modifier = Modifier.size(150.dp).clip(RoundedCornerShape(20.dp))
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Text(playlist.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(playlist.name, color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Text("${playlist.songCount} canciones", color = SecondaryText, fontSize = 12.sp)
     }
 }
@@ -269,7 +269,7 @@ fun AddPlaylistItem(onClick: () -> Unit) {
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Text("Nueva Playlist", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text("Nueva Playlist", color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Text("Crear", color = SecondaryText, fontSize = 12.sp)
     }
 }
@@ -280,7 +280,7 @@ fun CreatePlaylistDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = CardGreenBg,
-        title = { Text("Nueva Playlist", color = Color.White) },
+        title = { Text("Nueva Playlist", color = PrimaryText) },
         text = {
             TextField(
                 value = name,
@@ -289,8 +289,8 @@ fun CreatePlaylistDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = DarkGreenBg,
                     unfocusedContainerColor = DarkGreenBg,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
+                    focusedTextColor = PrimaryText,
+                    unfocusedTextColor = PrimaryText,
                     cursorColor = AccentGreen,
                     focusedIndicatorColor = AccentGreen
                 )
@@ -359,7 +359,7 @@ fun HeroPlayerCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     song?.title ?: "Sin música",
-                    color = Color.White,
+                    color = PrimaryText,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
@@ -404,7 +404,7 @@ fun HeroPlayerCard(
                         Icon(
                             Icons.Default.SkipPrevious,
                             contentDescription = "Anterior",
-                            tint = Color.White,
+                            tint = PrimaryText,
                             modifier = Modifier.size(26.dp)
                         )
                     }
@@ -428,7 +428,7 @@ fun HeroPlayerCard(
                         Icon(
                             Icons.Default.SkipNext,
                             contentDescription = "Siguiente",
-                            tint = Color.White,
+                            tint = PrimaryText,
                             modifier = Modifier.size(26.dp)
                         )
                     }
@@ -440,7 +440,7 @@ fun HeroPlayerCard(
                         Icon(
                             imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                             contentDescription = "Favorito",
-                            tint = if (isFavorite) AccentGreen else Color.White,
+                            tint = if (isFavorite) AccentGreen else PrimaryText,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -470,8 +470,8 @@ fun HomeSearchBar(
                 unfocusedContainerColor = CardGreenBg,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
+                focusedTextColor = PrimaryText,
+                unfocusedTextColor = PrimaryText
             ),
             leadingIcon = { Icon(Icons.Default.Search, null, tint = SecondaryText) }
         )
@@ -482,7 +482,7 @@ fun HomeSearchBar(
             DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }, modifier = Modifier.background(CardGreenBg)) {
                 FilterOption.entries.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option.displayName, color = Color.White) },
+                        text = { Text(option.displayName, color = PrimaryText) },
                         onClick = { onFilterSelect(option); showMenu = false }
                     )
                 }

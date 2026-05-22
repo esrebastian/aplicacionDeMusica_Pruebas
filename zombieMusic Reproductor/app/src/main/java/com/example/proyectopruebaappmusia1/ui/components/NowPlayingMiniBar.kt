@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.theme.AccentGreen
 import com.example.proyectopruebaappmusia1.ui.theme.CardGreenBg
+import com.example.proyectopruebaappmusia1.ui.theme.PrimaryText
 import com.example.proyectopruebaappmusia1.ui.theme.SecondaryText
 
 @Composable
@@ -65,7 +66,7 @@ fun NowPlayingMiniBar(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = song.title,
-                    color = Color.White,
+                    color = PrimaryText,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
@@ -81,14 +82,14 @@ fun NowPlayingMiniBar(
                 Icon(
                     if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = null,
-                    tint = Color.White
+                    tint = PrimaryText
                 )
             }
             IconButton(onClick = onNextClick) {
                 Icon(
                     Icons.Default.SkipNext,
                     contentDescription = null,
-                    tint = Color.White
+                    tint = PrimaryText
                 )
             }
         }

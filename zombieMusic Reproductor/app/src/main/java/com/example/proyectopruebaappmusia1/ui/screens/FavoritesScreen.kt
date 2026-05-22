@@ -68,7 +68,7 @@ fun FavoritesContent(
         ) {
             Text(
                 text = stringResource(R.string.favorites),
-                color = Color.White,
+                color = PrimaryText,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold
             )

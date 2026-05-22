@@ -69,6 +69,8 @@ class MusicPlayerViewModel(
     private val _minDurationFilter = MutableStateFlow(prefs.getInt("min_duration_filter", 0))
     val minDurationFilter: StateFlow<Int> = _minDurationFilter.asStateFlow()
 
+    private val _durationFilterAllowedSongIds = MutableStateFlow(loadDurationFilterAllowedSongIds())
+
     // Home
     private val _homeSearchQuery = MutableStateFlow("")
     val homeSearchQuery: StateFlow<String> = _homeSearchQuery.asStateFlow()
@@ -77,11 +79,11 @@ class MusicPlayerViewModel(
     val homeFilter: StateFlow<FilterOption> = _homeFilter.asStateFlow()
 
     val filteredHomeSongs: StateFlow<List<Song>> = combine(
-        _allSongs, _homeSearchQuery, _homeFilter, _minDurationFilter
-    ) { songs, query, filter, minDur ->
+        _allSongs, _homeSearchQuery, _homeFilter, _minDurationFilter, _durationFilterAllowedSongIds
+    ) { songs, query, filter, minDur, allowedIds ->
         songs.filter { 
             (it.title.contains(query, ignoreCase = true) || it.artist.contains(query, ignoreCase = true)) &&
-            (minDur == 0 || it.duration > minDur * 1000L)
+            (minDur == 0 || it.duration > minDur * 1000L || it.id in allowedIds)
         }.let { list ->
             when (filter) {
                 FilterOption.TITLE -> list.sortedBy { it.title }
@@ -99,11 +101,11 @@ class MusicPlayerViewModel(
     val libraryFilter: StateFlow<String> = _libraryFilter.asStateFlow()
 
     val filteredLibrarySongs: StateFlow<List<Song>> = combine(
-        _allSongs, _librarySearchQuery, _libraryFilter, _minDurationFilter
-    ) { songs, query, filter, minDur ->
+        _allSongs, _librarySearchQuery, _libraryFilter, _minDurationFilter, _durationFilterAllowedSongIds
+    ) { songs, query, filter, minDur, allowedIds ->
         songs.filter { 
             (it.title.contains(query, ignoreCase = true) || it.artist.contains(query, ignoreCase = true)) &&
-            (minDur == 0 || it.duration > minDur * 1000L)
+            (minDur == 0 || it.duration > minDur * 1000L || it.id in allowedIds)
         }.let { list ->
             when (filter) {
                 "De la A a la Z" -> list.sortedBy { it.title }
@@ -114,6 +116,17 @@ class MusicPlayerViewModel(
             }
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    val excludedDurationSongs: StateFlow<List<Song>> = combine(
+        _allSongs, _minDurationFilter, _durationFilterAllowedSongIds
+    ) { songs, minDur, allowedIds ->
+        if (minDur == 0) {
+            emptyList()
+        } else {
+            songs.filter { it.duration <= minDur * 1000L && it.id !in allowedIds }
+                .sortedBy { it.title }
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     // Favoritos e Historial
     val favoriteIds: StateFlow<Set<String>> = getFavoriteIdsUseCase()
@@ -188,8 +201,27 @@ class MusicPlayerViewModel(
         prefs.edit().putString("library_filter", filter).apply()
     }
     fun setMinDurationFilter(seconds: Int) {
-        _minDurationFilter.value = seconds
-        prefs.edit().putInt("min_duration_filter", seconds).apply()
+        val normalizedSeconds = seconds.coerceAtLeast(0)
+        if (_minDurationFilter.value != normalizedSeconds) {
+            clearDurationFilterAllowedSongIds()
+        }
+        _minDurationFilter.value = normalizedSeconds
+        prefs.edit().putInt("min_duration_filter", normalizedSeconds).apply()
+    }
+
+    fun allowSongInDurationFilter(song: Song) {
+        val updated = _durationFilterAllowedSongIds.value + song.id
+        _durationFilterAllowedSongIds.value = updated
+        prefs.edit().putStringSet("duration_filter_allowed_song_ids", updated).apply()
+    }
+
+    private fun loadDurationFilterAllowedSongIds(): Set<String> {
+        return prefs.getStringSet("duration_filter_allowed_song_ids", emptySet()).orEmpty()
+    }
+
+    private fun clearDurationFilterAllowedSongIds() {
+        _durationFilterAllowedSongIds.value = emptySet()
+        prefs.edit().remove("duration_filter_allowed_song_ids").apply()
     }
 
     fun createPlaylist(name: String): String = playlistRepository.createPlaylist(name)
