@@ -38,6 +38,7 @@ fun HomeScreen(
     viewModel: MusicPlayerViewModel,
     onHeroClick: () -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val currentSong by viewModel.currentSong.collectAsState()
@@ -64,6 +65,7 @@ fun HomeScreen(
         currentPos = currentPos,
         onHeroClick = onHeroClick,
         onPlaylistClick = onPlaylistClick,
+        onSettingsClick = onSettingsClick,
         onToggleFavorite = { viewModel.toggleFavorite(currentSong) },
         onPlayPause = { viewModel.togglePlayPause() },
         onNext = { viewModel.nextSong() },
@@ -91,6 +93,7 @@ fun HomeContent(
     currentPos: Long,
     onHeroClick: () -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
+    onSettingsClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
@@ -110,9 +113,7 @@ fun HomeContent(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item { 
-            HomeHeader(
-                onSettingsClick = { /* Acción de ajustes */ }
-            ) 
+            HomeHeader(onSettingsClick = onSettingsClick) 
         }
         
         item {
@@ -334,7 +335,14 @@ fun HeroPlayerCard(
         shape = RoundedCornerShape(28.dp),
         color = CardGreenBg
     ) {
-        Row(
+        BoxWithConstraints {
+            val compactCard = maxWidth < 390.dp
+            val albumSize = if (compactCard) 96.dp else 130.dp
+            val albumCorner = if (compactCard) 18.dp else 20.dp
+            val horizontalGap = if (compactCard) 10.dp else 16.dp
+            val controlSize = 48.dp
+
+            Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -342,11 +350,11 @@ fun HeroPlayerCard(
                 song?.albumArt,
                 null,
                 Modifier
-                    .size(130.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .size(albumSize)
+                    .clip(RoundedCornerShape(albumCorner))
             )
             
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(horizontalGap))
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -386,35 +394,59 @@ fun HeroPlayerCard(
                 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onPrevious) {
-                        Icon(Icons.Default.SkipPrevious, contentDescription = "Anterior", tint = Color.White)
+                    IconButton(
+                        onClick = onPrevious,
+                        modifier = Modifier.size(controlSize)
+                    ) {
+                        Icon(
+                            Icons.Default.SkipPrevious,
+                            contentDescription = "Anterior",
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
                     }
                     
-                    IconButton(onClick = onPlayPause) {
+                    IconButton(
+                        onClick = onPlayPause,
+                        modifier = Modifier.size(controlSize)
+                    ) {
                         Icon(
                             if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = "Reproducir/Pausar",
                             tint = AccentGreen,
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(36.dp)
                         )
                     }
                     
-                    IconButton(onClick = onNext) {
-                        Icon(Icons.Default.SkipNext, contentDescription = "Siguiente", tint = Color.White)
+                    IconButton(
+                        onClick = onNext,
+                        modifier = Modifier.size(controlSize)
+                    ) {
+                        Icon(
+                            Icons.Default.SkipNext,
+                            contentDescription = "Siguiente",
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
                     }
 
-                    IconButton(onClick = onToggleFavorite) {
+                    IconButton(
+                        onClick = onToggleFavorite,
+                        modifier = Modifier.size(controlSize)
+                    ) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                             contentDescription = "Favorito",
-                            tint = if (isFavorite) AccentGreen else Color.White
+                            tint = if (isFavorite) AccentGreen else Color.White,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
             }
+        }
         }
     }
 }
@@ -481,6 +513,7 @@ fun HomeScreenPreview() {
             currentPos = 120000,
             onHeroClick = {},
             onPlaylistClick = {},
+            onSettingsClick = {},
             onToggleFavorite = {},
             onPlayPause = {},
             onNext = {},

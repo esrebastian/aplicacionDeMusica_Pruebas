@@ -49,6 +49,7 @@ class MainActivity : ComponentActivity() {
                 
                 var selectedTab by remember { mutableStateOf(BottomTab.HOME) }
                 var isFullScreenPlayerVisible by remember { mutableStateOf(false) }
+                var isSettingsVisible by remember { mutableStateOf(false) }
                 
                 val selectedPlaylist by musicViewModel.selectedPlaylist.collectAsStateWithLifecycle()
                 val currentSong by musicViewModel.currentSong.collectAsStateWithLifecycle()
@@ -87,8 +88,9 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
-                BackHandler(enabled = isFullScreenPlayerVisible || selectedPlaylist != null) {
+                BackHandler(enabled = isFullScreenPlayerVisible || selectedPlaylist != null || isSettingsVisible) {
                     when {
+                        isSettingsVisible -> isSettingsVisible = false
                         isFullScreenPlayerVisible -> isFullScreenPlayerVisible = false
                         selectedPlaylist != null -> musicViewModel.selectPlaylistForDetail(null)
                     }
@@ -128,7 +130,8 @@ class MainActivity : ComponentActivity() {
                                 BottomTab.HOME -> HomeScreen(
                                     viewModel = musicViewModel,
                                     onHeroClick = { isFullScreenPlayerVisible = true },
-                                    onPlaylistClick = { musicViewModel.selectPlaylistForDetail(it) }
+                                    onPlaylistClick = { musicViewModel.selectPlaylistForDetail(it) },
+                                    onSettingsClick = { isSettingsVisible = true }
                                 )
                                 BottomTab.EXPLORE -> ExploreScreen(
                                     exploreViewModel = exploreViewModel,
@@ -136,11 +139,11 @@ class MainActivity : ComponentActivity() {
                                 )
                                 BottomTab.LIBRARY -> LibraryScreen(
                                     viewModel = musicViewModel,
-                                    onSettingsClick = { /* Abrir Ajustes */ }
+                                    onSettingsClick = { isSettingsVisible = true }
                                 )
                                 BottomTab.FAVORITES -> FavoritesScreen(
                                     viewModel = musicViewModel,
-                                    onSettingsClick = { /* Abrir Ajustes */ }
+                                    onSettingsClick = { isSettingsVisible = true }
                                 )
                             }
 
@@ -158,6 +161,17 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
+                    }
+
+                    AnimatedVisibility(
+                        visible = isSettingsVisible,
+                        enter = fadeIn() + slideInHorizontally { it },
+                        exit = fadeOut() + slideOutHorizontally { it }
+                    ) {
+                        SettingsScreen(
+                            viewModel = musicViewModel,
+                            onBack = { isSettingsVisible = false }
+                        )
                     }
 
                     AnimatedVisibility(

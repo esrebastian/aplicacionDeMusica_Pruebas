@@ -81,7 +81,7 @@ class MusicPlayerViewModel(
     ) { songs, query, filter, minDur ->
         songs.filter { 
             (it.title.contains(query, ignoreCase = true) || it.artist.contains(query, ignoreCase = true)) &&
-            (it.duration >= minDur * 1000L)
+            (minDur == 0 || it.duration > minDur * 1000L)
         }.let { list ->
             when (filter) {
                 FilterOption.TITLE -> list.sortedBy { it.title }
@@ -103,7 +103,7 @@ class MusicPlayerViewModel(
     ) { songs, query, filter, minDur ->
         songs.filter { 
             (it.title.contains(query, ignoreCase = true) || it.artist.contains(query, ignoreCase = true)) &&
-            (it.duration >= minDur * 1000L)
+            (minDur == 0 || it.duration > minDur * 1000L)
         }.let { list ->
             when (filter) {
                 "De la A a la Z" -> list.sortedBy { it.title }
