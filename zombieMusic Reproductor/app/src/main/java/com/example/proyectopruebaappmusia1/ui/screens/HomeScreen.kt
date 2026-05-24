@@ -16,6 +16,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -24,8 +27,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.proyectopruebaappmusia1.R
+import com.example.proyectopruebaappmusia1.domain.model.OnlineTrack
 import com.example.proyectopruebaappmusia1.domain.model.Playlist
 import com.example.proyectopruebaappmusia1.domain.model.Song
+import com.example.proyectopruebaappmusia1.ui.components.OnlineSearchResultItem
 import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.ui.components.AlbumArtImage
 import com.example.proyectopruebaappmusia1.ui.components.SettingsButton
@@ -46,7 +51,11 @@ fun HomeScreen(
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
     val favoriteIds by viewModel.favoriteIds.collectAsState()
     val searchQuery by viewModel.homeSearchQuery.collectAsState()
+    val onlineResults by viewModel.homeOnlineResults.collectAsState()
+    val searchLoading by viewModel.homeSearchLoading.collectAsState()
+    val searchError by viewModel.homeSearchError.collectAsState()
     val selectedFilter by viewModel.homeFilter.collectAsState()
+    val context = LocalContext.current
     val playlists by viewModel.homePlaylists.collectAsState()
     val progress by viewModel.progress.collectAsState()
     val duration by viewModel.duration.collectAsState()
@@ -58,6 +67,9 @@ fun HomeScreen(
         recentlyPlayed = recentlyPlayed,
         favoriteIds = favoriteIds,
         searchQuery = searchQuery,
+        onlineResults = onlineResults,
+        searchLoading = searchLoading,
+        searchError = searchError,
         selectedFilter = selectedFilter,
         playlists = playlists,
         progress = progress,
@@ -72,6 +84,9 @@ fun HomeScreen(
         onPrevious = { viewModel.previousSong() },
         onSeek = { viewModel.seekTo(it) },
         onSearchChange = { viewModel.onHomeSearch(it) },
+        onOnlineTrackClick = { track ->
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(track.externalUrl)))
+        },
         onFilterSelect = { viewModel.setHomeFilter(it) },
         onCreatePlaylist = { viewModel.createPlaylist(it) },
         onSongClick = { song -> viewModel.selectSong(song, newQueue = recentlyPlayed) },
@@ -86,6 +101,9 @@ fun HomeContent(
     recentlyPlayed: List<Song>,
     favoriteIds: Set<String>,
     searchQuery: String,
+    onlineResults: List<OnlineTrack>,
+    searchLoading: Boolean,
+    searchError: String?,
     selectedFilter: FilterOption,
     playlists: List<Playlist>,
     progress: Float,
@@ -100,6 +118,7 @@ fun HomeContent(
     onPrevious: () -> Unit,
     onSeek: (Float) -> Unit,
     onSearchChange: (String) -> Unit,
+    onOnlineTrackClick: (OnlineTrack) -> Unit,
     onFilterSelect: (FilterOption) -> Unit,
     onCreatePlaylist: (String) -> Unit,
     onSongClick: (Song) -> Unit,
@@ -168,6 +187,14 @@ fun HomeContent(
                     selectedFilter = selectedFilter,
                     onFilterSelect = onFilterSelect
                 )
+                if (searchQuery.isNotBlank()) {
+                    HomeOnlineSearchResults(
+                        results = onlineResults,
+                        isLoading = searchLoading,
+                        error = searchError,
+                        onTrackClick = onOnlineTrackClick
+                    )
+                }
             }
         }
     }
@@ -452,6 +479,39 @@ fun HeroPlayerCard(
 }
 
 @Composable
+fun HomeOnlineSearchResults(
+    results: List<OnlineTrack>,
+    isLoading: Boolean,
+    error: String?,
+    onTrackClick: (OnlineTrack) -> Unit
+) {
+    when {
+        isLoading -> {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = AccentGreen, modifier = Modifier.size(28.dp))
+            }
+        }
+        error != null -> {
+            Text(error, color = SecondaryText, fontSize = 13.sp)
+        }
+        results.isEmpty() -> {
+            Text("No se encontraron canciones", color = SecondaryText, fontSize = 13.sp)
+        }
+        else -> {
+            Column {
+                SectionTitle("Resultados en línea")
+                results.forEach { track ->
+                    OnlineSearchResultItem(track = track, onClick = { onTrackClick(track) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun HomeSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
@@ -504,6 +564,9 @@ fun HomeScreenPreview() {
             ),
             favoriteIds = setOf("1"),
             searchQuery = "",
+            onlineResults = emptyList(),
+            searchLoading = false,
+            searchError = null,
             selectedFilter = FilterOption.TITLE,
             playlists = listOf(
                 Playlist("p1", "Mi Playlist Mix", 12, null)
@@ -520,6 +583,7 @@ fun HomeScreenPreview() {
             onPrevious = {},
             onSeek = {},
             onSearchChange = {},
+            onOnlineTrackClick = {},
             onFilterSelect = {},
             onCreatePlaylist = {},
             onSongClick = {}

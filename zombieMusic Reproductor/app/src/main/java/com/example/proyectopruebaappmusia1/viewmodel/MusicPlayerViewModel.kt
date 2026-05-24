@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.proyectopruebaappmusia1.data.PlaylistRepository
+import com.example.proyectopruebaappmusia1.domain.model.OnlineTrack
 import com.example.proyectopruebaappmusia1.domain.model.Playlist
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.domain.usecase.*
@@ -28,7 +29,8 @@ class MusicPlayerViewModel(
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val getRecentlyPlayedIdsUseCase: GetRecentlyPlayedIdsUseCase,
     private val addRecentlyPlayedUseCase: AddRecentlyPlayedUseCase,
-    private val playlistRepository: PlaylistRepository
+    private val playlistRepository: PlaylistRepository,
+    private val searchMusicOnlineUseCase: SearchMusicOnlineUseCase
 ) : AndroidViewModel(application) {
 
     private val context = application.applicationContext
@@ -77,6 +79,17 @@ class MusicPlayerViewModel(
 
     private val _homeFilter = MutableStateFlow(FilterOption.TITLE)
     val homeFilter: StateFlow<FilterOption> = _homeFilter.asStateFlow()
+
+    private val _homeOnlineResults = MutableStateFlow<List<OnlineTrack>>(emptyList())
+    val homeOnlineResults: StateFlow<List<OnlineTrack>> = _homeOnlineResults.asStateFlow()
+
+    private val _homeSearchLoading = MutableStateFlow(false)
+    val homeSearchLoading: StateFlow<Boolean> = _homeSearchLoading.asStateFlow()
+
+    private val _homeSearchError = MutableStateFlow<String?>(null)
+    val homeSearchError: StateFlow<String?> = _homeSearchError.asStateFlow()
+
+    private var homeOnlineSearchJob: Job? = null
 
     val filteredHomeSongs: StateFlow<List<Song>> = combine(
         _allSongs, _homeSearchQuery, _homeFilter, _minDurationFilter, _durationFilterAllowedSongIds
@@ -192,7 +205,28 @@ class MusicPlayerViewModel(
     }
 
     // --- ACCIONES ---
-    fun onHomeSearch(query: String) { _homeSearchQuery.value = query }
+    fun onHomeSearch(query: String) {
+        _homeSearchQuery.value = query
+        homeOnlineSearchJob?.cancel()
+        if (query.isBlank()) {
+            _homeOnlineResults.value = emptyList()
+            _homeSearchError.value = null
+            _homeSearchLoading.value = false
+            return
+        }
+        homeOnlineSearchJob = viewModelScope.launch {
+            delay(450)
+            _homeSearchLoading.value = true
+            _homeSearchError.value = null
+            searchMusicOnlineUseCase(query)
+                .onSuccess { _homeOnlineResults.value = it }
+                .onFailure {
+                    _homeOnlineResults.value = emptyList()
+                    _homeSearchError.value = it.message
+                }
+            _homeSearchLoading.value = false
+        }
+    }
     fun setHomeFilter(filter: FilterOption) { _homeFilter.value = filter }
     
     fun onSearchLibrary(query: String) { _librarySearchQuery.value = query }

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -16,6 +18,27 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val localProperties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.inputStream().use { localProperties.load(it) }
+        }
+        buildConfigField(
+            "String",
+            "YOUTUBE_API_KEY",
+            "\"${localProperties.getProperty("YOUTUBE_API_KEY", "")}\""
+        )
+        buildConfigField(
+            "String",
+            "SPOTIFY_CLIENT_ID",
+            "\"${localProperties.getProperty("SPOTIFY_CLIENT_ID", "")}\""
+        )
+        buildConfigField(
+            "String",
+            "SPOTIFY_CLIENT_SECRET",
+            "\"${localProperties.getProperty("SPOTIFY_CLIENT_SECRET", "")}\""
+        )
     }
 
     buildTypes {
@@ -33,6 +56,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
