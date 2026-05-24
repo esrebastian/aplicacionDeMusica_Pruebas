@@ -29,7 +29,8 @@ class ViewModelFactory(private val context: Context) : ViewModelProvider.Factory
                     toggleFavoriteUseCase = ToggleFavoriteUseCase(favoritesRepository),
                     getRecentlyPlayedIdsUseCase = GetRecentlyPlayedIdsUseCase(recentlyPlayedRepository),
                     addRecentlyPlayedUseCase = AddRecentlyPlayedUseCase(recentlyPlayedRepository),
-                    playlistRepository = playlistRepository
+                    playlistRepository = playlistRepository,
+                    searchMusicOnlineUseCase = SearchMusicOnlineUseCase(OnlineMusicSearchRepository())
                 ) as T
             }
             modelClass.isAssignableFrom(ExploreViewModel::class.java) -> {
