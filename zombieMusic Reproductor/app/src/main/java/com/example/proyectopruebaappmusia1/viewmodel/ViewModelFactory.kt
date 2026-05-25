@@ -13,6 +13,7 @@ class ViewModelFactory(private val context: Context) : ViewModelProvider.Factory
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         val appContext = context.applicationContext
         val application = appContext as Application
+        val youtubeDownloadApi = YouTubeDownloadApi.create()
 
         return when {
             modelClass.isAssignableFrom(MusicPlayerViewModel::class.java) -> {
@@ -20,7 +21,7 @@ class ViewModelFactory(private val context: Context) : ViewModelProvider.Factory
                 val repository = MusicRepositoryImpl(appContext)
                 val favoritesRepository = FavoritesRepositoryImpl(prefs)
                 val recentlyPlayedRepository = RecentlyPlayedRepositoryImpl(prefs)
-                val playlistRepository = PlaylistRepository(prefs) // Nuevo Repositorio
+                val playlistRepository = PlaylistRepository(prefs)
 
                 MusicPlayerViewModel(
                     application = application,
@@ -30,13 +31,13 @@ class ViewModelFactory(private val context: Context) : ViewModelProvider.Factory
                     getRecentlyPlayedIdsUseCase = GetRecentlyPlayedIdsUseCase(recentlyPlayedRepository),
                     addRecentlyPlayedUseCase = AddRecentlyPlayedUseCase(recentlyPlayedRepository),
                     playlistRepository = playlistRepository,
-                    searchMusicOnlineUseCase = SearchMusicOnlineUseCase(OnlineMusicSearchRepository())
+                    searchMusicOnlineUseCase = SearchMusicOnlineUseCase(OnlineMusicSearchRepository()),
+                    getStreamingUrlUseCase = GetStreamingUrlUseCase(youtubeDownloadApi)
                 ) as T
             }
             modelClass.isAssignableFrom(ExploreViewModel::class.java) -> {
-                val api = YouTubeDownloadApi.create()
                 ExploreViewModel(
-                    downloadFromUrlUseCase = DownloadFromUrlUseCase(api, appContext)
+                    downloadFromUrlUseCase = DownloadFromUrlUseCase(youtubeDownloadApi, appContext)
                 ) as T
             }
             modelClass.isAssignableFrom(DownloadViewModel::class.java) -> {

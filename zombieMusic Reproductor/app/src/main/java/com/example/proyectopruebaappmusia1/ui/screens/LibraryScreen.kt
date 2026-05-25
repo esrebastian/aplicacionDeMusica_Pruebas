@@ -22,6 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.proyectopruebaappmusia1.domain.model.Playlist
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.theme.*
+import com.example.proyectopruebaappmusia1.ui.components.ScreenHeader
 import com.example.proyectopruebaappmusia1.ui.components.SongListItem
 import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
 
@@ -86,26 +87,7 @@ fun LibraryContent(
             .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Tu LibrerÃ­a", color = PrimaryText, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            
-            IconButton(
-                onClick = onSettingsClick,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(CardGreenBg)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Ajustes",
-                    tint = SecondaryText
-                )
-            }
-        }
+        ScreenHeader(title = "Tu Librería", onSettingsClick = onSettingsClick)
 
         Row(
             modifier = Modifier.fillMaxWidth(),

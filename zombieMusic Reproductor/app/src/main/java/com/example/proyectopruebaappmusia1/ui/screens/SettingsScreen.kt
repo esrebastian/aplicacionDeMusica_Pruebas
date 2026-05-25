@@ -63,6 +63,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.proyectopruebaappmusia1.domain.model.Song
+import com.example.proyectopruebaappmusia1.ui.components.SettingIconBubble
+import com.example.proyectopruebaappmusia1.ui.components.SettingsActionRow
+import com.example.proyectopruebaappmusia1.ui.components.SettingsChoiceCard
+import com.example.proyectopruebaappmusia1.ui.components.SettingsSectionTitle
+import com.example.proyectopruebaappmusia1.ui.components.SettingsToggleRow
 import com.example.proyectopruebaappmusia1.ui.theme.AccentGreen
 import com.example.proyectopruebaappmusia1.ui.theme.CardGreenBg
 import com.example.proyectopruebaappmusia1.ui.theme.DarkGreenBg
@@ -453,141 +458,6 @@ private fun DurationFilterCard(
                 color = SecondaryText,
                 fontSize = 13.sp
             )
-        }
-    }
-}
-
-@Composable
-private fun SettingsSectionTitle(text: String) {
-    Text(text, color = PrimaryText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-}
-
-@Composable
-private fun SettingsChoiceCard(
-    icon: @Composable () -> Unit,
-    title: String,
-    subtitle: String,
-    options: List<String>,
-    selectedOption: String,
-    onOptionSelected: (String) -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = CardGreenBg,
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SettingIconBubble(icon)
-                Column(modifier = Modifier.padding(start = 12.dp)) {
-                    Text(title, color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Text(subtitle, color = SecondaryText, fontSize = 13.sp)
-                }
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                options.forEach { option ->
-                    val isSelected = option == selectedOption
-                    Button(
-                        onClick = { onOptionSelected(option) },
-                        modifier = Modifier.weight(1f).height(42.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isSelected) AccentGreen else DarkGreenBg,
-                            contentColor = if (isSelected) DarkGreenBg else PrimaryText
-                        ),
-                        contentPadding = PaddingValues(horizontal = 8.dp),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(option, fontSize = 12.sp, maxLines = 1)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsActionRow(
-    icon: @Composable () -> Unit,
-    title: String,
-    subtitle: String,
-    actionText: String,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = CardGreenBg,
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            SettingIconBubble(icon)
-            Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-                Text(title, color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text(subtitle, color = SecondaryText, fontSize = 13.sp)
-            }
-            OutlinedButton(
-                onClick = onClick,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentGreen),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(actionText)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsToggleRow(
-    icon: @Composable () -> Unit,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = CardGreenBg,
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            SettingIconBubble(icon)
-            Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-                Text(title, color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text(subtitle, color = SecondaryText, fontSize = 13.sp)
-            }
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = DarkGreenBg,
-                    checkedTrackColor = AccentGreen,
-                    uncheckedThumbColor = SecondaryText,
-                    uncheckedTrackColor = PrimaryText.copy(alpha = 0.14f)
-                )
-            )
-        }
-    }
-}
-
-@Composable
-private fun SettingIconBubble(content: @Composable () -> Unit) {
-    Surface(
-        modifier = Modifier.size(42.dp),
-        shape = CircleShape,
-        color = AccentGreen.copy(alpha = 0.14f)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            content()
         }
     }
 }

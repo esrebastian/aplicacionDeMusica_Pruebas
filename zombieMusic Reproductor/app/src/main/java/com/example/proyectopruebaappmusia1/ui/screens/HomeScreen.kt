@@ -85,7 +85,7 @@ fun HomeScreen(
         onSeek = { viewModel.seekTo(it) },
         onSearchChange = { viewModel.onHomeSearch(it) },
         onOnlineTrackClick = { track ->
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(track.externalUrl)))
+            viewModel.playOnlineTrack(track)
         },
         onFilterSelect = { viewModel.setHomeFilter(it) },
         onCreatePlaylist = { viewModel.createPlaylist(it) },

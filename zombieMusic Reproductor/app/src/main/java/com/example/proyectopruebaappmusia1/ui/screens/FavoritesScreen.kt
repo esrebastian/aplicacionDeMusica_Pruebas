@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.example.proyectopruebaappmusia1.R
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.theme.*
+import com.example.proyectopruebaappmusia1.ui.components.ScreenHeader
 import com.example.proyectopruebaappmusia1.ui.components.SongListItem
 import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
 
@@ -61,31 +62,7 @@ fun FavoritesContent(
             .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = stringResource(R.string.favorites),
-                color = PrimaryText,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            IconButton(
-                onClick = onSettingsClick,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(CardGreenBg)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Ajustes",
-                    tint = SecondaryText
-                )
-            }
-        }
+        ScreenHeader(title = stringResource(R.string.favorites), onSettingsClick = onSettingsClick)
 
         if (favoriteSongs.isEmpty()) {
             Box(

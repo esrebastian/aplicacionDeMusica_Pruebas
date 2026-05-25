@@ -9,18 +9,21 @@ import kotlinx.coroutines.withContext
 class OnlineMusicSearchRepository(
     private val youtubeApi: YouTubeSearchApi = YouTubeSearchApi.create(),
     private val spotifyAuthApi: SpotifyAuthApi = SpotifyAuthApi.create(),
-    private val spotifySearchApi: SpotifySearchApi = SpotifySearchApi.create()
+    private val spotifySearchApi: SpotifySearchApi = SpotifySearchApi.create(),
+    private val pipedApi: PipedSearchApi = PipedSearchApi.create()
 ) {
 
     suspend fun search(query: String): Result<List<OnlineTrack>> = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
         if (trimmed.isBlank()) return@withContext Result.success(emptyList())
 
+        // 1. Intentar con YouTube (Requiere API Key)
         val youtubeKey = BuildConfig.YOUTUBE_API_KEY.trim()
         if (youtubeKey.isNotEmpty()) {
             searchYouTube(trimmed, youtubeKey)?.let { return@withContext Result.success(it) }
         }
 
+        // 2. Intentar con Spotify (Requiere Client ID/Secret)
         val spotifyClientId = BuildConfig.SPOTIFY_CLIENT_ID.trim()
         val spotifyClientSecret = BuildConfig.SPOTIFY_CLIENT_SECRET.trim()
         if (spotifyClientId.isNotEmpty() && spotifyClientSecret.isNotEmpty()) {
@@ -29,9 +32,28 @@ class OnlineMusicSearchRepository(
             }
         }
 
+        // 3. RESPALDO: Intentar con Piped (No requiere API Key)
+        try {
+            val response = pipedApi.search(trimmed)
+            val results = response.items.orEmpty().filter { it.type == "stream" }.map { item ->
+                val videoId = item.url?.substringAfter("v=") ?: ""
+                OnlineTrack(
+                    id = videoId,
+                    title = item.title.orEmpty(),
+                    artist = item.uploaderName.orEmpty(),
+                    thumbnailUrl = item.thumbnail,
+                    source = "YouTube (Piped)",
+                    externalUrl = "https://www.youtube.com/watch?v=$videoId"
+                )
+            }
+            if (results.isNotEmpty()) return@withContext Result.success(results)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         Result.failure(
             IllegalStateException(
-                "Agrega YOUTUBE_API_KEY o SPOTIFY_CLIENT_ID y SPOTIFY_CLIENT_SECRET en local.properties"
+                "Agrega YOUTUBE_API_KEY o SPOTIFY_CLIENT_ID y SPOTIFY_CLIENT_SECRET en local.properties para mejores resultados, o revisa tu conexión."
             )
         )
     }

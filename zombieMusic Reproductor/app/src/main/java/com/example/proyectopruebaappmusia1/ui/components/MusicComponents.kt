@@ -35,6 +35,27 @@ fun SettingsButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 @Composable
+fun ScreenHeader(
+    title: String,
+    onSettingsClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = title,
+            color = PrimaryText,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold
+        )
+        SettingsButton(onClick = onSettingsClick)
+    }
+}
+
+@Composable
 fun MiniPlayer(
     song: Song,
     isPlaying: Boolean,

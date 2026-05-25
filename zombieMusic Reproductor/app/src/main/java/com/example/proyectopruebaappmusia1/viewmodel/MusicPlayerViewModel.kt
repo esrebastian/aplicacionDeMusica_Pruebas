@@ -30,7 +30,8 @@ class MusicPlayerViewModel(
     private val getRecentlyPlayedIdsUseCase: GetRecentlyPlayedIdsUseCase,
     private val addRecentlyPlayedUseCase: AddRecentlyPlayedUseCase,
     private val playlistRepository: PlaylistRepository,
-    private val searchMusicOnlineUseCase: SearchMusicOnlineUseCase
+    private val searchMusicOnlineUseCase: SearchMusicOnlineUseCase,
+    private val getStreamingUrlUseCase: GetStreamingUrlUseCase
 ) : AndroidViewModel(application) {
 
     private val context = application.applicationContext
@@ -278,8 +279,37 @@ class MusicPlayerViewModel(
         val queue = _playbackQueue.value
         val index = queue.indexOf(song)
         if (index != -1) {
-            // CORREGIDO: Se cambió loadQueue por loadPlaylist (nombre correcto en MusicPlayerService)
             musicService.loadPlaylist(queue, index, autoPlay = autoPlay)
+        }
+    }
+
+    fun playOnlineTrack(track: OnlineTrack) {
+        viewModelScope.launch {
+            _homeSearchLoading.value = true
+            getStreamingUrlUseCase(track.externalUrl)
+                .onSuccess { streamUrl ->
+                    val onlineSong = Song(
+                        id = track.id,
+                        title = track.title,
+                        artist = track.artist,
+                        duration = 0,
+                        filePath = streamUrl,
+                        albumArt = track.thumbnailUrl,
+                        dateAdded = System.currentTimeMillis()
+                    )
+                    
+                    val currentQueue = _playbackQueue.value.toMutableList()
+                    if (!currentQueue.any { it.id == onlineSong.id }) {
+                        currentQueue.add(0, onlineSong)
+                        _playbackQueue.value = currentQueue
+                    }
+                    
+                    selectSong(onlineSong, autoPlay = true)
+                }
+                .onFailure {
+                    _homeSearchError.value = "Error al obtener stream: ${it.message}"
+                }
+            _homeSearchLoading.value = false
         }
     }
 
