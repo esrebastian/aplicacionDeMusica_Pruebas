@@ -23,9 +23,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.ui.components.AlbumArtImage
+import com.example.proyectopruebaappmusia1.ui.components.MusicIconButton
 import com.example.proyectopruebaappmusia1.util.TimeUtils
 import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
 
@@ -36,12 +38,12 @@ fun NowPlayingFullScreen(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val currentSong by viewModel.currentSong.collectAsState(null)
-    val isPlaying by viewModel.isPlaying.collectAsState(false)
-    val duration by viewModel.duration.collectAsState(0L)
-    val currentPosition by viewModel.currentPosition.collectAsState(0L)
-    val favoriteIds by viewModel.favoriteIds.collectAsState(emptySet())
-    val isShuffleEnabled by viewModel.isShuffleEnabled.collectAsState(false)
+    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle(null)
+    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle(false)
+    val duration by viewModel.duration.collectAsStateWithLifecycle(0L)
+    val currentPosition by viewModel.currentPosition.collectAsStateWithLifecycle(0L)
+    val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle(emptySet())
+    val isShuffleEnabled by viewModel.isShuffleEnabled.collectAsStateWithLifecycle(false)
 
     var sliderPosition by remember(currentSong?.id) { mutableFloatStateOf(0f) }
     var isUserSeeking by remember { mutableStateOf(false) }
@@ -111,12 +113,14 @@ fun NowPlayingFullScreen(
                         )
                     }
                     val isFavorite = currentSong?.id in favoriteIds
-                    IconButton(onClick = { viewModel.toggleFavorite(currentSong) }) {
-                        Icon(
-                            if (isFavorite) Icons.Default.Favorite else Icons.Outlined.Favorite,
-                            null, tint = if (isFavorite) AccentGreen else SecondaryText, modifier = Modifier.size(28.dp)
-                        )
-                    }
+                    MusicIconButton(
+                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Outlined.Favorite,
+                        contentDescription = null,
+                        onClick = { viewModel.toggleFavorite(currentSong) },
+                        tint = if (isFavorite) AccentGreen else SecondaryText,
+                        buttonSize = 48.dp,
+                        iconSize = 28.dp
+                    )
                 }
 
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -137,27 +141,45 @@ fun NowPlayingFullScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { viewModel.previousSong() }) {
-                        Icon(Icons.Default.SkipPrevious, null, tint = PrimaryText, modifier = Modifier.size(48.dp))
-                    }
+                    MusicIconButton(
+                        imageVector = Icons.Default.SkipPrevious,
+                        contentDescription = null,
+                        onClick = { viewModel.previousSong() },
+                        tint = PrimaryText,
+                        buttonSize = 56.dp,
+                        iconSize = 48.dp
+                    )
                     Box(
                         modifier = Modifier.size(72.dp).clip(CircleShape).background(AccentGreen).clickable { viewModel.togglePlayPause() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = DarkGreenBg, modifier = Modifier.size(40.dp))
                     }
-                    IconButton(onClick = { viewModel.nextSong() }) {
-                        Icon(Icons.Default.SkipNext, null, tint = PrimaryText, modifier = Modifier.size(48.dp))
-                    }
+                    MusicIconButton(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = null,
+                        onClick = { viewModel.nextSong() },
+                        tint = PrimaryText,
+                        buttonSize = 56.dp,
+                        iconSize = 48.dp
+                    )
                 }
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    IconButton(onClick = { viewModel.toggleShuffle() }) {
-                        Icon(Icons.Default.Shuffle, null, tint = if (isShuffleEnabled) AccentGreen else PrimaryText)
-                    }
-                    IconButton(onClick = { showQueueSheet = true }) {
-                        Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = PrimaryText)
-                    }
+                    MusicIconButton(
+                        imageVector = Icons.Default.Shuffle,
+                        contentDescription = null,
+                        onClick = { viewModel.toggleShuffle() },
+                        tint = if (isShuffleEnabled) AccentGreen else PrimaryText,
+                        buttonSize = 48.dp
+                    )
+                    MusicIconButton(
+                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                        contentDescription = null,
+                        onClick = { showQueueSheet = true },
+                        tint = PrimaryText,
+                        buttonSize = 48.dp
+                    )
                 }
             }
         }
@@ -172,9 +194,9 @@ fun NowPlayingFullScreen(
 
 @Composable
 fun QueueSheetContent(viewModel: MusicPlayerViewModel) {
-    val songsQueue by viewModel.playlist.collectAsState(emptyList<Song>())
-    val currentSong by viewModel.currentSong.collectAsState(null)
-    val sleepTimerRemaining by viewModel.sleepTimerRemaining.collectAsState(null)
+    val songsQueue by viewModel.playbackQueue.collectAsStateWithLifecycle(emptyList<Song>())
+    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle(null)
+    val sleepTimerRemaining by viewModel.sleepTimerRemaining.collectAsStateWithLifecycle(null)
     var showSleepTimerDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxHeight(0.8f).padding(16.dp)) {
@@ -182,7 +204,7 @@ fun QueueSheetContent(viewModel: MusicPlayerViewModel) {
         Spacer(modifier = Modifier.height(16.dp))
         
         LazyColumn(modifier = Modifier.weight(1f)) {
-            items(songsQueue) { song ->
+            items(songsQueue, key = { it.id }, contentType = { "queue_song" }) { song ->
                 Row(
                     modifier = Modifier.fillMaxWidth().clickable { viewModel.selectSong(song) }.padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically

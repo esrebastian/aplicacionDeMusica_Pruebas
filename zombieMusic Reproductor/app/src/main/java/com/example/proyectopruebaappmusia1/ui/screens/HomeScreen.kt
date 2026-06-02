@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.proyectopruebaappmusia1.R
 import com.example.proyectopruebaappmusia1.domain.model.OnlineTrack
 import com.example.proyectopruebaappmusia1.domain.model.Playlist
@@ -33,6 +34,7 @@ import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.components.OnlineSearchResultItem
 import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.ui.components.AlbumArtImage
+import com.example.proyectopruebaappmusia1.ui.components.MusicIconButton
 import com.example.proyectopruebaappmusia1.ui.components.SettingsButton
 import com.example.proyectopruebaappmusia1.util.TimeUtils
 import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
@@ -46,20 +48,20 @@ fun HomeScreen(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val currentSong by viewModel.currentSong.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
-    val favoriteIds by viewModel.favoriteIds.collectAsState()
-    val searchQuery by viewModel.homeSearchQuery.collectAsState()
-    val onlineResults by viewModel.homeOnlineResults.collectAsState()
-    val searchLoading by viewModel.homeSearchLoading.collectAsState()
-    val searchError by viewModel.homeSearchError.collectAsState()
-    val selectedFilter by viewModel.homeFilter.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
+    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    val recentlyPlayed by viewModel.recentlyPlayed.collectAsStateWithLifecycle()
+    val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.homeSearchQuery.collectAsStateWithLifecycle()
+    val onlineResults by viewModel.homeOnlineResults.collectAsStateWithLifecycle()
+    val searchLoading by viewModel.homeSearchLoading.collectAsStateWithLifecycle()
+    val searchError by viewModel.homeSearchError.collectAsStateWithLifecycle()
+    val selectedFilter by viewModel.homeFilter.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val playlists by viewModel.homePlaylists.collectAsState()
-    val progress by viewModel.progress.collectAsState()
-    val duration by viewModel.duration.collectAsState()
-    val currentPos by viewModel.currentPosition.collectAsState()
+    val playlists by viewModel.homePlaylists.collectAsStateWithLifecycle()
+    val progress by viewModel.progress.collectAsStateWithLifecycle()
+    val duration by viewModel.duration.collectAsStateWithLifecycle()
+    val currentPos by viewModel.currentPosition.collectAsStateWithLifecycle()
 
     HomeContent(
         currentSong = currentSong,
@@ -156,7 +158,7 @@ fun HomeContent(
             item { SectionTitle("Escuchado recientemente") }
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(recentlyPlayed) { song ->
+                    items(recentlyPlayed, key = { it.id }, contentType = { "recent_song" }) { song ->
                         RecentSongItem(song) { onSongClick(song) }
                     }
                 }
@@ -169,7 +171,7 @@ fun HomeContent(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                items(playlists) { playlist ->
+                items(playlists, key = { it.id }, contentType = { "playlist" }) { playlist ->
                     PlaylistItem(playlist) { onPlaylistClick(playlist) }
                 }
                 
@@ -424,53 +426,41 @@ fun HeroPlayerCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
+                    MusicIconButton(
+                        imageVector = Icons.Default.SkipPrevious,
+                        contentDescription = "Anterior",
                         onClick = onPrevious,
-                        modifier = Modifier.size(controlSize)
-                    ) {
-                        Icon(
-                            Icons.Default.SkipPrevious,
-                            contentDescription = "Anterior",
-                            tint = PrimaryText,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
+                        tint = PrimaryText,
+                        buttonSize = controlSize,
+                        iconSize = 26.dp
+                    )
                     
-                    IconButton(
+                    MusicIconButton(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = "Reproducir/Pausar",
                         onClick = onPlayPause,
-                        modifier = Modifier.size(controlSize)
-                    ) {
-                        Icon(
-                            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = "Reproducir/Pausar",
-                            tint = AccentGreen,
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
+                        tint = AccentGreen,
+                        buttonSize = controlSize,
+                        iconSize = 36.dp
+                    )
                     
-                    IconButton(
+                    MusicIconButton(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = "Siguiente",
                         onClick = onNext,
-                        modifier = Modifier.size(controlSize)
-                    ) {
-                        Icon(
-                            Icons.Default.SkipNext,
-                            contentDescription = "Siguiente",
-                            tint = PrimaryText,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
+                        tint = PrimaryText,
+                        buttonSize = controlSize,
+                        iconSize = 26.dp
+                    )
 
-                    IconButton(
+                    MusicIconButton(
+                        imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = "Favorito",
                         onClick = onToggleFavorite,
-                        modifier = Modifier.size(controlSize)
-                    ) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                            contentDescription = "Favorito",
-                            tint = if (isFavorite) AccentGreen else PrimaryText,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
+                        tint = if (isFavorite) AccentGreen else PrimaryText,
+                        buttonSize = controlSize,
+                        iconSize = 22.dp
+                    )
                 }
             }
         }

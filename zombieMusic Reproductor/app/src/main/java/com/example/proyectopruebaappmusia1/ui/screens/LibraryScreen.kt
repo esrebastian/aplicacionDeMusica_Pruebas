@@ -87,7 +87,7 @@ fun LibraryContent(
             .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        ScreenHeader(title = "Tu Librería", onSettingsClick = onSettingsClick)
+        ScreenHeader(title = "Biblioteca", onSettingsClick = onSettingsClick)
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -141,7 +141,7 @@ fun LibraryContent(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
-            items(songs, key = { it.id }) { song ->
+            items(songs, key = { it.id }, contentType = { "library_song" }) { song ->
                 SongListItem(
                     song = song,
                     isCurrent = song.id == currentSong?.id,
@@ -184,7 +184,7 @@ fun AddToPlaylistDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = CardGreenBg,
-        title = { Text("Agregar a playlist", color = PrimaryText) },
+        title = { Text("Agrega a una playlist", color = PrimaryText) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(song.title, color = SecondaryText, fontSize = 14.sp, maxLines = 1)
@@ -204,7 +204,7 @@ fun AddToPlaylistDialog(
                         }
                     }
                 } else {
-                    Text("Crea una playlist y la agrego de una.", color = SecondaryText, fontSize = 14.sp)
+                    Text("Crea una playlist y la agregala", color = SecondaryText, fontSize = 14.sp)
                 }
 
                 TextField(

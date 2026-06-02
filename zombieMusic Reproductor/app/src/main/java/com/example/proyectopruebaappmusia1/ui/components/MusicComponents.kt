@@ -12,7 +12,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.proyectopruebaappmusia1.domain.model.Song
@@ -20,16 +23,48 @@ import com.example.proyectopruebaappmusia1.ui.theme.*
 
 @Composable
 fun SettingsButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    MusicIconButton(
+        imageVector = Icons.Default.Settings,
+        contentDescription = "Ajustes",
+        onClick = onClick,
+        tint = SecondaryText,
+        containerColor = CardGreenBg,
+        buttonSize = 48.dp,
+        iconSize = 24.dp,
+        modifier = modifier
+    )
+}
+
+@Composable
+fun MusicIconButton(
+    imageVector: ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    tint: Color? = null,
+    buttonSize: Dp = 40.dp,
+    iconSize: Dp = 22.dp,
+    containerColor: Color? = null,
+    shape: Shape = RoundedCornerShape(12.dp)
+) {
+    val sizedModifier = modifier.size(buttonSize)
+    val buttonModifier = if (containerColor != null) {
+        sizedModifier.clip(shape).background(containerColor)
+    } else {
+        sizedModifier
+    }
+
+    val iconTint = tint ?: PrimaryText
+
     IconButton(
         onClick = onClick,
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardGreenBg)
+        modifier = buttonModifier
     ) {
         Icon(
-            imageVector = Icons.Default.Settings,
-            contentDescription = "Ajustes",
-            tint = SecondaryText
+            imageVector = imageVector,
+            contentDescription = contentDescription,
+            tint = iconTint,
+            modifier = Modifier.size(iconSize)
         )
     }
 }
@@ -89,12 +124,16 @@ fun MiniPlayer(
                     Text(song.title, color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                     Text(song.artist, color = SecondaryText, fontSize = 12.sp, maxLines = 1)
                 }
-                IconButton(onClick = onPlayPauseClick) {
-                    Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = null, tint = PrimaryText)
-                }
-                IconButton(onClick = onNextClick) {
-                    Icon(Icons.Default.SkipNext, contentDescription = null, tint = PrimaryText)
-                }
+                MusicIconButton(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    onClick = onPlayPauseClick
+                )
+                MusicIconButton(
+                    imageVector = Icons.Default.SkipNext,
+                    contentDescription = null,
+                    onClick = onNextClick
+                )
             }
         }
     }

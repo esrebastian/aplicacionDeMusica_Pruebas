@@ -24,9 +24,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.proyectopruebaappmusia1.domain.model.Playlist
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.components.AlbumArtImage
+import com.example.proyectopruebaappmusia1.ui.components.MusicIconButton
 import com.example.proyectopruebaappmusia1.ui.components.SongListItem
 import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
@@ -38,9 +40,9 @@ fun PlaylistDetailScreen(
     playlist: Playlist,
     onBack: () -> Unit
 ) {
-    val currentSong by viewModel.currentSong.collectAsState()
-    val favoriteIds by viewModel.favoriteIds.collectAsState()
-    val allSongs by viewModel.playlist.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
+    val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle()
+    val allSongs by viewModel.playlist.collectAsStateWithLifecycle()
     var showAddSongsDialog by remember { mutableStateOf(false) }
 
     PlaylistDetailContent(
@@ -155,20 +157,26 @@ fun PlaylistDetailContent(
                             Text("Reproducir", color = DarkGreenBg, fontWeight = FontWeight.Bold)
                         }
                         
-                        IconButton(
+                        MusicIconButton(
+                            imageVector = Icons.Default.Shuffle,
+                            contentDescription = null,
                             onClick = onShuffleClick,
-                            modifier = Modifier.background(PrimaryText.copy(alpha = 0.1f), CircleShape).size(48.dp)
-                        ) {
-                            Icon(Icons.Default.Shuffle, null, tint = PrimaryText)
-                        }
+                            tint = PrimaryText,
+                            containerColor = PrimaryText.copy(alpha = 0.1f),
+                            shape = CircleShape,
+                            buttonSize = 48.dp
+                        )
 
                         if (canEditSongs) {
-                            IconButton(
+                            MusicIconButton(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Agregar canciones",
                                 onClick = onAddSongsClick,
-                                modifier = Modifier.background(PrimaryText.copy(alpha = 0.1f), CircleShape).size(48.dp)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Agregar canciones", tint = PrimaryText)
-                            }
+                                tint = PrimaryText,
+                                containerColor = PrimaryText.copy(alpha = 0.1f),
+                                shape = CircleShape,
+                                buttonSize = 48.dp
+                            )
                         }
                     }
                 }
@@ -197,7 +205,7 @@ fun PlaylistDetailContent(
                     }
                 }
             } else {
-                items(playlist.songs) { song ->
+                items(playlist.songs, key = { it.id }, contentType = { "playlist_song" }) { song ->
                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                         SongListItem(
                             song = song,
@@ -253,7 +261,7 @@ fun AddSongsToPlaylistDialog(
                 Text("No hay canciones pendientes para agregar.", color = SecondaryText)
             } else {
                 LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
-                    items(availableSongs, key = { it.id }) { song ->
+                    items(availableSongs, key = { it.id }, contentType = { "available_song" }) { song ->
                         TextButton(
                             onClick = { onAddSong(song) },
                             modifier = Modifier.fillMaxWidth()

@@ -21,20 +21,37 @@ class PlaylistRepository(private val prefs: SharedPreferences) {
         val json = prefs.getString(KEY_CUSTOM_PLAYLISTS, null) ?: return emptyList()
         val type = object : TypeToken<List<Playlist>>() {}.type
         return try {
-            gson.fromJson(json, type)
+            val playlists = gson.fromJson<List<Playlist>>(json, type).orEmpty()
+            playlists.map { it.withNormalizedMetadata() }
         } catch (e: Exception) {
             emptyList()
         }
     }
 
     private fun savePlaylists(playlists: List<Playlist>) {
-        val json = gson.toJson(playlists)
+        val normalizedPlaylists = playlists.map { it.withNormalizedMetadata() }
+        val json = gson.toJson(normalizedPlaylists)
         prefs.edit().putString(KEY_CUSTOM_PLAYLISTS, json).apply()
-        _customPlaylists.value = playlists
+        _customPlaylists.value = normalizedPlaylists
+    }
+
+    private fun Song.validAlbumArt(): String? {
+        return albumArt?.takeIf { it.isNotBlank() && it != "0" }
+    }
+
+    private fun Playlist.withNormalizedMetadata(): Playlist {
+        val normalizedCover = coverImage
+            ?.takeIf { it.isNotBlank() && it != "0" }
+            ?: songs.firstNotNullOfOrNull { it.validAlbumArt() }
+
+        return copy(
+            songCount = songs.size,
+            coverImage = normalizedCover
+        )
     }
 
     fun createPlaylist(name: String): String {
-        val current = loadPlaylists().toMutableList()
+        val current = _customPlaylists.value.toMutableList()
         val playlistId = "custom_${System.currentTimeMillis()}"
         val newPlaylist = Playlist(
             id = playlistId,
@@ -48,13 +65,13 @@ class PlaylistRepository(private val prefs: SharedPreferences) {
     }
 
     fun addSongToPlaylist(playlistId: String, song: Song) {
-        val current = loadPlaylists().map { playlist ->
+        val current = _customPlaylists.value.map { playlist ->
             if (playlist.id == playlistId) {
                 val updatedSongs = playlist.songs.toMutableList()
                 if (!updatedSongs.any { it.id == song.id }) {
                     updatedSongs.add(song)
                 }
-                playlist.copy(songs = updatedSongs, songCount = updatedSongs.size)
+                playlist.copy(songs = updatedSongs).withNormalizedMetadata()
             } else {
                 playlist
             }
@@ -63,8 +80,18 @@ class PlaylistRepository(private val prefs: SharedPreferences) {
     }
 
     fun createPlaylistWithSong(name: String, song: Song): String {
-        val playlistId = createPlaylist(name)
-        addSongToPlaylist(playlistId, song)
+        val current = _customPlaylists.value.toMutableList()
+        val playlistId = "custom_${System.currentTimeMillis()}"
+        current.add(
+            Playlist(
+                id = playlistId,
+                name = name,
+                songCount = 1,
+                coverImage = song.validAlbumArt(),
+                songs = listOf(song)
+            )
+        )
+        savePlaylists(current)
         return playlistId
     }
 

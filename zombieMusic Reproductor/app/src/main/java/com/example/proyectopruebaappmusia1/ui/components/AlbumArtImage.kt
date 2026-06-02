@@ -3,6 +3,7 @@ package com.example.proyectopruebaappmusia1.ui.components
 import android.content.ContentUris
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
@@ -16,12 +17,16 @@ fun AlbumArtImage(
     contentDescription: String?,
     modifier: Modifier = Modifier
 ) {
-    val uri = if (!albumArtId.isNullOrBlank() && albumArtId != "0") {
-        ContentUris.withAppendedId(
-            "content://media/external/audio/albumart".toUri(),
-            albumArtId.toLongOrNull() ?: 0L
-        )
-    } else null
+    val uri = remember(albumArtId) {
+        if (!albumArtId.isNullOrBlank() && albumArtId != "0") {
+            ContentUris.withAppendedId(
+                "content://media/external/audio/albumart".toUri(),
+                albumArtId.toLongOrNull() ?: 0L
+            )
+        } else {
+            null
+        }
+    }
 
     if (uri != null) {
         AsyncImage(

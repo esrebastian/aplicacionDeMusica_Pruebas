@@ -95,17 +95,14 @@ class MusicPlayerViewModel(
     val filteredHomeSongs: StateFlow<List<Song>> = combine(
         _allSongs, _homeSearchQuery, _homeFilter, _minDurationFilter, _durationFilterAllowedSongIds
     ) { songs, query, filter, minDur, allowedIds ->
-        songs.filter { 
-            (it.title.contains(query, ignoreCase = true) || it.artist.contains(query, ignoreCase = true)) &&
-            (minDur == 0 || it.duration > minDur * 1000L || it.id in allowedIds)
-        }.let { list ->
+        songs.filter { it.matchesSearch(query) && it.passesDurationFilter(minDur, allowedIds) }.let { list ->
             when (filter) {
                 FilterOption.TITLE -> list.sortedBy { it.title }
                 FilterOption.ARTIST -> list.sortedBy { it.artist }
                 FilterOption.DURATION -> list.sortedByDescending { it.duration }
             }
         }
-    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     // Librería
     private val _librarySearchQuery = MutableStateFlow("")
@@ -117,10 +114,7 @@ class MusicPlayerViewModel(
     val filteredLibrarySongs: StateFlow<List<Song>> = combine(
         _allSongs, _librarySearchQuery, _libraryFilter, _minDurationFilter, _durationFilterAllowedSongIds
     ) { songs, query, filter, minDur, allowedIds ->
-        songs.filter { 
-            (it.title.contains(query, ignoreCase = true) || it.artist.contains(query, ignoreCase = true)) &&
-            (minDur == 0 || it.duration > minDur * 1000L || it.id in allowedIds)
-        }.let { list ->
+        songs.filter { it.matchesSearch(query) && it.passesDurationFilter(minDur, allowedIds) }.let { list ->
             when (filter) {
                 "De la A a la Z" -> list.sortedBy { it.title }
                 "Artista" -> list.sortedBy { it.artist }
@@ -129,7 +123,7 @@ class MusicPlayerViewModel(
                 else -> list
             }
         }
-    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val excludedDurationSongs: StateFlow<List<Song>> = combine(
         _allSongs, _minDurationFilter, _durationFilterAllowedSongIds
@@ -140,18 +134,19 @@ class MusicPlayerViewModel(
             songs.filter { it.duration <= minDur * 1000L && it.id !in allowedIds }
                 .sortedBy { it.title }
         }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     // Favoritos e Historial
     val favoriteIds: StateFlow<Set<String>> = getFavoriteIdsUseCase()
     
     val recentlyPlayed: StateFlow<List<Song>> = combine(_allSongs, getRecentlyPlayedIdsUseCase()) { songs, ids ->
-        ids.mapNotNull { id -> songs.find { it.id == id } }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        val songsById = songs.associateBy { it.id }
+        ids.mapNotNull { id -> songsById[id] }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val favoriteSongs: StateFlow<List<Song>> = combine(_allSongs, favoriteIds) { songs, ids ->
         songs.filter { it.id in ids }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _isShuffleEnabled = MutableStateFlow(false)
     val isShuffleEnabled: StateFlow<Boolean> = _isShuffleEnabled.asStateFlow()
@@ -162,6 +157,15 @@ class MusicPlayerViewModel(
     private val _sleepTimerRemaining = MutableStateFlow<Long?>(null)
     val sleepTimerRemaining: StateFlow<Long?> = _sleepTimerRemaining.asStateFlow()
     private var sleepTimerJob: Job? = null
+
+    private fun Song.matchesSearch(query: String): Boolean {
+        if (query.isBlank()) return true
+        return title.contains(query, ignoreCase = true) || artist.contains(query, ignoreCase = true)
+    }
+
+    private fun Song.passesDurationFilter(minDurationSeconds: Int, allowedIds: Set<String>): Boolean {
+        return minDurationSeconds == 0 || duration > minDurationSeconds * 1000L || id in allowedIds
+    }
 
     init {
         observeMusicService()
@@ -369,8 +373,26 @@ class MusicPlayerViewModel(
 
     private fun observeMusicService() {
         viewModelScope.launch { musicService.isPlaying.collect { _isPlaying.value = it } }
-        viewModelScope.launch { musicService.currentPosition.collect { _currentPosition.value = it } }
-        viewModelScope.launch { musicService.duration.collect { _duration.value = it } }
+        viewModelScope.launch {
+            musicService.currentPosition.collect { position ->
+                _currentPosition.value = position
+                _progress.value = if (_duration.value > 0L) {
+                    (position.toFloat() / _duration.value).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
+            }
+        }
+        viewModelScope.launch {
+            musicService.duration.collect { duration ->
+                _duration.value = duration
+                _progress.value = if (duration > 0L) {
+                    (_currentPosition.value.toFloat() / duration).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
+            }
+        }
         viewModelScope.launch { musicService.songCompleted.collect { nextSong() } }
 
         // --- SINCRONIZACIÓN CON COLA NATIVA ---

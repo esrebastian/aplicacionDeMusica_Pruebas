@@ -9,7 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.proyectopruebaappmusia1.R
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.theme.*
@@ -33,8 +33,8 @@ fun FavoritesScreen(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val favoriteSongs by viewModel.favoriteSongs.collectAsState()
-    val currentSong by viewModel.currentSong.collectAsState()
+    val favoriteSongs by viewModel.favoriteSongs.collectAsStateWithLifecycle()
+    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
 
     FavoritesContent(
         favoriteSongs = favoriteSongs,
@@ -80,7 +80,7 @@ fun FavoritesContent(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(favoriteSongs, key = { it.id }) { song ->
+                items(favoriteSongs, key = { it.id }, contentType = { "favorite_song" }) { song ->
                     SongListItem(
                         song = song,
                         isCurrent = currentSong?.id == song.id,

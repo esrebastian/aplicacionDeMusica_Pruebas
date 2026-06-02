@@ -68,43 +68,29 @@ fun SongListItem(
             )
         }
         if (onFavoriteClick != null) {
-            IconButton(
-                onClick = { onFavoriteClick() },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    if (isFavorite) Icons.Default.Favorite else Icons.Outlined.Favorite,
-                    contentDescription = stringResource(R.string.favorite_content_description),
-                    tint = if (isFavorite) AccentGreen else SecondaryText,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            MusicIconButton(
+                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Outlined.Favorite,
+                contentDescription = stringResource(R.string.favorite_content_description),
+                onClick = onFavoriteClick,
+                tint = if (isFavorite) AccentGreen else SecondaryText
+            )
         }
         if (onAddToPlaylistClick != null) {
-            IconButton(
-                onClick = { onAddToPlaylistClick() },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Agregar a playlist",
-                    tint = SecondaryText,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            MusicIconButton(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Agregar a playlist",
+                onClick = onAddToPlaylistClick,
+                tint = SecondaryText
+            )
         }
         if (onDeleteClick != null) {
-            IconButton(
-                onClick = { onDeleteClick() },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Eliminar",
-                    tint = Color.Red.copy(alpha = 0.7f),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            MusicIconButton(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "Eliminar",
+                onClick = onDeleteClick,
+                tint = Color.Red.copy(alpha = 0.7f),
+                iconSize = 20.dp
+            )
         }
         Spacer(modifier = Modifier.width(8.dp))
         Text(

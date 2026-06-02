@@ -23,6 +23,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -41,6 +42,8 @@ class MusicPlayerService(private val context: Context) {
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
+    private var positionJob: Job? = null
+    private var loadedMediaIds: List<String> = emptyList()
     
     private var pendingPlaylist: PendingPlaylist? = null
     private data class PendingPlaylist(val songs: List<Song>, val startIndex: Int, val autoPlay: Boolean)
@@ -116,16 +119,6 @@ class MusicPlayerService(private val context: Context) {
             context.registerReceiver(receiver, filter)
         }
 
-        scope.launch {
-            while (true) {
-                delay(200)
-                mediaController?.let { controller ->
-                    _isPlaying.value = controller.isPlaying
-                    _currentPosition.value = controller.currentPosition.coerceAtLeast(0L)
-                    _duration.value = controller.duration.coerceAtLeast(0L)
-                }
-            }
-        }
     }
 
     private fun setupController() {
@@ -139,17 +132,21 @@ class MusicPlayerService(private val context: Context) {
             _currentPosition.value = controller.currentPosition.coerceAtLeast(0L)
             _duration.value = controller.duration.coerceAtLeast(0L)
             _currentMediaId.value = controller.currentMediaItem?.mediaId
+            if (controller.isPlaying) startPositionUpdates()
             
             controller.addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _isPlaying.value = isPlaying
+                    if (isPlaying) startPositionUpdates() else stopPositionUpdates()
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     _currentMediaId.value = mediaItem?.mediaId
+                    updatePlaybackSnapshot()
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
+                    updatePlaybackSnapshot()
                     if (playbackState == Player.STATE_ENDED) {
                         _songCompleted.trySend(Unit)
                     }
@@ -157,15 +154,52 @@ class MusicPlayerService(private val context: Context) {
 
                 override fun onPlayerError(error: PlaybackException) {
                     _isPlaying.value = false
+                    stopPositionUpdates()
                 }
             })
         }
+    }
+
+    private fun updatePlaybackSnapshot() {
+        mediaController?.let { controller ->
+            _currentPosition.value = controller.currentPosition.coerceAtLeast(0L)
+            _duration.value = controller.duration.coerceAtLeast(0L)
+            _currentMediaId.value = controller.currentMediaItem?.mediaId
+        }
+    }
+
+    private fun startPositionUpdates() {
+        if (positionJob?.isActive == true) return
+        positionJob = scope.launch {
+            while (mediaController?.isPlaying == true) {
+                updatePlaybackSnapshot()
+                delay(500)
+            }
+            updatePlaybackSnapshot()
+        }
+    }
+
+    private fun stopPositionUpdates() {
+        positionJob?.cancel()
+        positionJob = null
+        updatePlaybackSnapshot()
     }
 
     fun loadPlaylist(songs: List<Song>, startIndex: Int, autoPlay: Boolean = true) {
         val controller = mediaController
         if (controller == null) {
             pendingPlaylist = PendingPlaylist(songs, startIndex, autoPlay)
+            return
+        }
+
+        if (songs.isEmpty()) return
+        val safeStartIndex = startIndex.coerceIn(0, songs.lastIndex)
+        val requestedIds = songs.map { it.id }
+        if (requestedIds == loadedMediaIds && controller.mediaItemCount == songs.size) {
+            controller.seekTo(safeStartIndex, 0L)
+            if (controller.playbackState == Player.STATE_IDLE) controller.prepare()
+            if (autoPlay) controller.play()
+            updatePlaybackSnapshot()
             return
         }
 
@@ -190,9 +224,11 @@ class MusicPlayerService(private val context: Context) {
                 .build()
         }
 
-        controller.setMediaItems(mediaItems, startIndex, 0L)
+        controller.setMediaItems(mediaItems, safeStartIndex, 0L)
+        loadedMediaIds = requestedIds
         controller.prepare()
         if (autoPlay) controller.play()
+        updatePlaybackSnapshot()
     }
 
     fun play() = mediaController?.play()
@@ -220,7 +256,10 @@ class MusicPlayerService(private val context: Context) {
     }
 
     fun release() {
+        stopPositionUpdates()
         try { context.unregisterReceiver(receiver) } catch (e: Exception) {}
         controllerFuture?.let { MediaController.releaseFuture(it) }
+        mediaController = null
+        loadedMediaIds = emptyList()
     }
 }

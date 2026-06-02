@@ -4,9 +4,12 @@ import android.app.DownloadManager
 import android.database.Cursor
 import com.example.proyectopruebaappmusia1.domain.model.DownloadItem
 import com.example.proyectopruebaappmusia1.domain.repository.DownloadRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 
 class DownloadRepositoryImpl(private val downloadManager: DownloadManager) : DownloadRepository {
 
@@ -35,7 +38,7 @@ class DownloadRepositoryImpl(private val downloadManager: DownloadManager) : Dow
             emit(newList)
             delay(1000) // Emitimos actualizaciones cada segundo
         }
-    }
+    }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
     override fun removeDownload(id: Long) {
         downloadManager.remove(id)

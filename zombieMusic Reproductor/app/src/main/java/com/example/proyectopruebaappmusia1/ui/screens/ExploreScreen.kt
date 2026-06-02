@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.viewmodel.ExploreViewModel
 import com.example.proyectopruebaappmusia1.viewmodel.DownloadViewModel
@@ -29,7 +30,7 @@ fun ExploreScreen(
     val pagerState = rememberPagerState(pageCount = { topTabs.size })
     val scope = rememberCoroutineScope()
     
-    val isGeneralBrowserActive by exploreViewModel.isGeneralBrowserActive.collectAsState()
+    val isGeneralBrowserActive by exploreViewModel.isGeneralBrowserActive.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
