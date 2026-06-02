@@ -26,6 +26,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.proyectopruebaappmusia1.R
 import com.example.proyectopruebaappmusia1.domain.model.OnlineTrack
@@ -36,6 +38,7 @@ import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.ui.components.AlbumArtImage
 import com.example.proyectopruebaappmusia1.ui.components.MusicIconButton
 import com.example.proyectopruebaappmusia1.ui.components.SettingsButton
+import com.example.proyectopruebaappmusia1.ui.components.SongListItem
 import com.example.proyectopruebaappmusia1.util.TimeUtils
 import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
 import com.example.proyectopruebaappmusia1.viewmodel.FilterOption
@@ -127,6 +130,9 @@ fun HomeContent(
     modifier: Modifier = Modifier
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
+    var showRecentlyPlayedDialog by remember { mutableStateOf(false) }
+    val homeRecentlyPlayed = remember(recentlyPlayed) { recentlyPlayed.take(20) }
+    val fullRecentlyPlayed = remember(recentlyPlayed) { recentlyPlayed.take(60) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize().background(DarkGreenBg),
@@ -155,10 +161,16 @@ fun HomeContent(
         }
 
         if (recentlyPlayed.isNotEmpty()) {
-            item { SectionTitle("Escuchado recientemente") }
+            item {
+                SectionTitleWithAction(
+                    title = "Escuchado recientemente",
+                    actionText = "Ver todo",
+                    onActionClick = { showRecentlyPlayedDialog = true }
+                )
+            }
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(recentlyPlayed, key = { it.id }, contentType = { "recent_song" }) { song ->
+                    items(homeRecentlyPlayed, key = { it.id }, contentType = { "recent_song" }) { song ->
                         RecentSongItem(song) { onSongClick(song) }
                     }
                 }
@@ -210,6 +222,18 @@ fun HomeContent(
             }
         )
     }
+
+    if (showRecentlyPlayedDialog) {
+        RecentlyPlayedDialog(
+            songs = fullRecentlyPlayed,
+            currentSong = currentSong,
+            onDismiss = { showRecentlyPlayedDialog = false },
+            onSongClick = { song ->
+                showRecentlyPlayedDialog = false
+                onSongClick(song)
+            }
+        )
+    }
 }
 
 @Composable
@@ -250,6 +274,90 @@ fun HomeHeader(onSettingsClick: () -> Unit) {
 @Composable
 fun SectionTitle(title: String) {
     Text(title, color = PrimaryText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+}
+
+@Composable
+fun SectionTitleWithAction(
+    title: String,
+    actionText: String,
+    onActionClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        SectionTitle(title)
+        TextButton(onClick = onActionClick) {
+            Text(actionText, color = AccentGreen, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun RecentlyPlayedDialog(
+    songs: List<Song>,
+    currentSong: Song?,
+    onDismiss: () -> Unit,
+    onSongClick: (Song) -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = DarkGreenBg
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    MusicIconButton(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Volver",
+                        onClick = onDismiss,
+                        tint = PrimaryText,
+                        buttonSize = 48.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Reproducido recientemente",
+                            color = PrimaryText,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${songs.size} canciones",
+                            color = SecondaryText,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(songs, key = { it.id }, contentType = { "recent_dialog_song" }) { song ->
+                    SongListItem(
+                        song = song,
+                        isCurrent = song.id == currentSong?.id,
+                        onClick = { onSongClick(song) }
+                    )
+                }
+            }
+            }
+        }
+    }
 }
 
 @Composable

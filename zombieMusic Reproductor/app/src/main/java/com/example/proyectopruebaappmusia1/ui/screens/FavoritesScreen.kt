@@ -41,7 +41,7 @@ fun FavoritesScreen(
         currentSong = currentSong,
         onSettingsClick = onSettingsClick,
         onFavoriteClick = { viewModel.toggleFavorite(it) },
-        onSongClick = { viewModel.selectSong(it) },
+        onSongClick = { song -> viewModel.selectSong(song, newQueue = favoriteSongs) },
         modifier = modifier
     )
 }

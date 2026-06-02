@@ -77,9 +77,9 @@ fun ExcludedSongsDialog(
                 Column {
                     Text(
                         if (useEnglish) {
-                            "These songs are $minDurationFilter seconds or shorter."
+                            "These songs are outside your queue or current library filters."
                         } else {
-                            "Estas canciones duran $minDurationFilter segundos o menos."
+                            "Estas canciones estan fuera de tu cola o de los filtros actuales."
                         },
                         color = SecondaryText,
                         fontSize = 13.sp
@@ -184,7 +184,7 @@ private fun ExcludedSongDetailsDialog(
             ) {
                 Icon(Icons.Default.CheckCircle, null, tint = DarkGreenBg)
                 Text(
-                    if (useEnglish) "REMOVE FROM FILTER" else "SACAR DEL FILTRO",
+                    if (useEnglish) "ADD BACK" else "VOLVER A ANADIR",
                     color = DarkGreenBg,
                     modifier = Modifier.padding(start = 8.dp),
                     fontWeight = FontWeight.Bold

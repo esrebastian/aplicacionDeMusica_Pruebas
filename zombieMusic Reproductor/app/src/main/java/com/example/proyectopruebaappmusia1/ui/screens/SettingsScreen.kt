@@ -87,7 +87,7 @@ fun SettingsScreen(
     val minDurationFilter by viewModel.minDurationFilter.collectAsStateWithLifecycle()
     val allSongs by viewModel.playlist.collectAsStateWithLifecycle()
     val visibleSongs by viewModel.filteredLibrarySongs.collectAsStateWithLifecycle()
-    val excludedSongs by viewModel.excludedDurationSongs.collectAsStateWithLifecycle()
+    val excludedSongs by viewModel.excludedLibrarySongs.collectAsStateWithLifecycle()
 
     SettingsContent(
         prefs = prefs,
@@ -99,7 +99,7 @@ fun SettingsScreen(
         onMinDurationChange = { viewModel.setMinDurationFilter(it) },
         onReloadSongs = { viewModel.loadRealSongs() },
         onClearCache = { context.cacheDir.deleteRecursively() },
-        onAllowFilteredSong = { viewModel.allowSongInDurationFilter(it) }
+        onAllowFilteredSong = { viewModel.allowSongInLibrary(it) }
     )
 }
 

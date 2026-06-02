@@ -1,6 +1,8 @@
 package com.example.proyectopruebaappmusia1.ui.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,21 +27,29 @@ import com.example.proyectopruebaappmusia1.ui.theme.PrimaryText
 import com.example.proyectopruebaappmusia1.ui.theme.SecondaryText
 import com.example.proyectopruebaappmusia1.util.TimeUtils
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SongListItem(
     song: Song,
     isCurrent: Boolean,
     onClick: () -> Unit,
     isFavorite: Boolean = false,
+    isSelected: Boolean = false,
     onFavoriteClick: (() -> Unit)? = null,
     onAddToPlaylistClick: (() -> Unit)? = null,
-    onDeleteClick: (() -> Unit)? = null
+    onDeleteClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(vertical = 8.dp),
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isSelected) AccentGreen.copy(alpha = 0.16f) else Color.Transparent)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .padding(horizontal = if (isSelected) 8.dp else 0.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AlbumArtImage(

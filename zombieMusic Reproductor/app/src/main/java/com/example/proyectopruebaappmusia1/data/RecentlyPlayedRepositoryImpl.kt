@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 private const val KEY_RECENTLY_PLAYED_IDS = "recently_played_song_ids"
 private const val SEPARATOR = ","
-private const val MAX_RECENT = 50
+private const val MAX_RECENT = 60
 
 class RecentlyPlayedRepositoryImpl(private val prefs: SharedPreferences) : RecentlyPlayedRepository {
 

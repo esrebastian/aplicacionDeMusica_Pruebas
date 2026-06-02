@@ -2,6 +2,7 @@ package com.example.proyectopruebaappmusia1.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.proyectopruebaappmusia1.data.PlaylistRepository
@@ -14,6 +15,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.Calendar
 import kotlin.random.Random
 
@@ -73,6 +75,8 @@ class MusicPlayerViewModel(
     val minDurationFilter: StateFlow<Int> = _minDurationFilter.asStateFlow()
 
     private val _durationFilterAllowedSongIds = MutableStateFlow(loadDurationFilterAllowedSongIds())
+    private val _manualExcludedSongIds = MutableStateFlow(loadManualExcludedSongIds())
+    private val _deletedSongIds = MutableStateFlow(loadDeletedSongIds())
 
     // Home
     private val _homeSearchQuery = MutableStateFlow("")
@@ -92,8 +96,14 @@ class MusicPlayerViewModel(
 
     private var homeOnlineSearchJob: Job? = null
 
+    private val visibleBaseSongs: StateFlow<List<Song>> = combine(
+        _allSongs, _manualExcludedSongIds
+    ) { songs, manualExcludedIds ->
+        songs.filter { it.id !in manualExcludedIds }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val filteredHomeSongs: StateFlow<List<Song>> = combine(
-        _allSongs, _homeSearchQuery, _homeFilter, _minDurationFilter, _durationFilterAllowedSongIds
+        visibleBaseSongs, _homeSearchQuery, _homeFilter, _minDurationFilter, _durationFilterAllowedSongIds
     ) { songs, query, filter, minDur, allowedIds ->
         songs.filter { it.matchesSearch(query) && it.passesDurationFilter(minDur, allowedIds) }.let { list ->
             when (filter) {
@@ -112,7 +122,7 @@ class MusicPlayerViewModel(
     val libraryFilter: StateFlow<String> = _libraryFilter.asStateFlow()
 
     val filteredLibrarySongs: StateFlow<List<Song>> = combine(
-        _allSongs, _librarySearchQuery, _libraryFilter, _minDurationFilter, _durationFilterAllowedSongIds
+        visibleBaseSongs, _librarySearchQuery, _libraryFilter, _minDurationFilter, _durationFilterAllowedSongIds
     ) { songs, query, filter, minDur, allowedIds ->
         songs.filter { it.matchesSearch(query) && it.passesDurationFilter(minDur, allowedIds) }.let { list ->
             when (filter) {
@@ -134,6 +144,15 @@ class MusicPlayerViewModel(
             songs.filter { it.duration <= minDur * 1000L && it.id !in allowedIds }
                 .sortedBy { it.title }
         }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val excludedLibrarySongs: StateFlow<List<Song>> = combine(
+        _allSongs, _manualExcludedSongIds, excludedDurationSongs
+    ) { songs, manualExcludedIds, durationExcludedSongs ->
+        val manualExcludedSongs = songs.filter { it.id in manualExcludedIds }
+        (manualExcludedSongs + durationExcludedSongs)
+            .distinctBy { it.id }
+            .sortedBy { it.title }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     // Favoritos e Historial
@@ -194,9 +213,11 @@ class MusicPlayerViewModel(
 
     fun loadRealSongs() {
         viewModelScope.launch { 
-            val songs = getSongsUseCase()
+            val songs = getSongsUseCase().filter { it.id !in _deletedSongIds.value }
             _allSongs.value = songs
-            if (_playbackQueue.value.isEmpty()) _playbackQueue.value = songs
+            if (_playbackQueue.value.isEmpty()) {
+                _playbackQueue.value = songs.filter { it.id !in _manualExcludedSongIds.value }
+            }
             
             if (_currentSong.value == null) {
                 val lastPlayedIds = getRecentlyPlayedIdsUseCase().firstOrNull()
@@ -254,13 +275,73 @@ class MusicPlayerViewModel(
         prefs.edit().putStringSet("duration_filter_allowed_song_ids", updated).apply()
     }
 
+    fun allowSongInLibrary(song: Song) {
+        val updatedManualExclusions = _manualExcludedSongIds.value - song.id
+        _manualExcludedSongIds.value = updatedManualExclusions
+        val updatedDurationAllowedIds = _durationFilterAllowedSongIds.value + song.id
+        _durationFilterAllowedSongIds.value = updatedDurationAllowedIds
+        prefs.edit()
+            .putStringSet("manual_excluded_song_ids", updatedManualExclusions)
+            .putStringSet("duration_filter_allowed_song_ids", updatedDurationAllowedIds)
+            .apply()
+
+        if (_playbackQueue.value.none { it.id == song.id }) {
+            _playbackQueue.value = _playbackQueue.value + song
+        }
+    }
+
+    fun excludeSongFromLibrary(song: Song) {
+        val updated = _manualExcludedSongIds.value + song.id
+        _manualExcludedSongIds.value = updated
+        prefs.edit().putStringSet("manual_excluded_song_ids", updated).apply()
+        _playbackQueue.value = _playbackQueue.value.filterNot { it.id == song.id }
+        if (_currentSong.value?.id == song.id) {
+            _currentSong.value = _playbackQueue.value.firstOrNull()
+            _currentSong.value?.let { selectSong(it) }
+        }
+    }
+
+    fun deleteSong(song: Song) {
+        val updatedDeletedIds = _deletedSongIds.value + song.id
+        _deletedSongIds.value = updatedDeletedIds
+        prefs.edit().putStringSet("deleted_song_ids", updatedDeletedIds).apply()
+        deleteSongFile(song)
+        _allSongs.value = _allSongs.value.filterNot { it.id == song.id }
+        _playbackQueue.value = _playbackQueue.value.filterNot { it.id == song.id }
+        _manualExcludedSongIds.value = _manualExcludedSongIds.value - song.id
+        prefs.edit().putStringSet("manual_excluded_song_ids", _manualExcludedSongIds.value).apply()
+        if (_currentSong.value?.id == song.id) {
+            _currentSong.value = _playbackQueue.value.firstOrNull()
+            _currentSong.value?.let { selectSong(it) }
+        }
+    }
+
     private fun loadDurationFilterAllowedSongIds(): Set<String> {
         return prefs.getStringSet("duration_filter_allowed_song_ids", emptySet()).orEmpty()
+    }
+
+    private fun loadManualExcludedSongIds(): Set<String> {
+        return prefs.getStringSet("manual_excluded_song_ids", emptySet()).orEmpty()
+    }
+
+    private fun loadDeletedSongIds(): Set<String> {
+        return prefs.getStringSet("deleted_song_ids", emptySet()).orEmpty()
     }
 
     private fun clearDurationFilterAllowedSongIds() {
         _durationFilterAllowedSongIds.value = emptySet()
         prefs.edit().remove("duration_filter_allowed_song_ids").apply()
+    }
+
+    private fun deleteSongFile(song: Song) {
+        runCatching {
+            val uri = Uri.parse(song.filePath)
+            if (uri.scheme == "content") {
+                context.contentResolver.delete(uri, null, null)
+            } else if (uri.scheme == "file" || uri.scheme == null) {
+                File(uri.path ?: song.filePath).takeIf { it.exists() }?.delete()
+            }
+        }
     }
 
     fun createPlaylist(name: String): String = playlistRepository.createPlaylist(name)
