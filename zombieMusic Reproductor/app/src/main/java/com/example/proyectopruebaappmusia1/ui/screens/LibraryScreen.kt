@@ -58,13 +58,8 @@ fun LibraryScreen(
         onFavoriteClick = { viewModel.toggleFavorite(it) },
         onAddToPlaylist = { playlistId, song -> viewModel.addSongToPlaylist(playlistId, song) },
         onCreatePlaylistWithSong = { name, song -> viewModel.createPlaylistWithSong(name, song) },
-        onAddSongsToPlaylist = { playlistId, selectedSongs ->
-            selectedSongs.forEach { song -> viewModel.addSongToPlaylist(playlistId, song) }
-        },
-        onCreatePlaylistWithSongs = { name, selectedSongs ->
-            val playlistId = viewModel.createPlaylist(name)
-            selectedSongs.forEach { song -> viewModel.addSongToPlaylist(playlistId, song) }
-        },
+        onAddSongsToPlaylist = { playlistId, selectedSongs -> viewModel.addSongsToPlaylist(playlistId, selectedSongs) },
+        onCreatePlaylistWithSongs = { name, selectedSongs -> viewModel.createPlaylistWithSongs(name, selectedSongs) },
         onExcludeSong = { viewModel.excludeSongFromLibrary(it) },
         onDeleteSong = { viewModel.deleteSong(it) },
         modifier = modifier

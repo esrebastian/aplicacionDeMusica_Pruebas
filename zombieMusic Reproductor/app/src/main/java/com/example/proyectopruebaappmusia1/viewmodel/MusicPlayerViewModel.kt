@@ -81,6 +81,10 @@ class MusicPlayerViewModel(
     // Home
     private val _homeSearchQuery = MutableStateFlow("")
     val homeSearchQuery: StateFlow<String> = _homeSearchQuery.asStateFlow()
+    private val normalizedHomeSearchQuery: StateFlow<String> = _homeSearchQuery
+        .map { it.trim().lowercase() }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
     private val _homeFilter = MutableStateFlow(FilterOption.TITLE)
     val homeFilter: StateFlow<FilterOption> = _homeFilter.asStateFlow()
@@ -99,11 +103,11 @@ class MusicPlayerViewModel(
     private val visibleBaseSongs: StateFlow<List<Song>> = combine(
         _allSongs, _manualExcludedSongIds
     ) { songs, manualExcludedIds ->
-        songs.filter { it.id !in manualExcludedIds }
+        if (manualExcludedIds.isEmpty()) songs else songs.filter { it.id !in manualExcludedIds }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val filteredHomeSongs: StateFlow<List<Song>> = combine(
-        visibleBaseSongs, _homeSearchQuery, _homeFilter, _minDurationFilter, _durationFilterAllowedSongIds
+        visibleBaseSongs, normalizedHomeSearchQuery, _homeFilter, _minDurationFilter, _durationFilterAllowedSongIds
     ) { songs, query, filter, minDur, allowedIds ->
         songs.filter { it.matchesSearch(query) && it.passesDurationFilter(minDur, allowedIds) }.let { list ->
             when (filter) {
@@ -117,12 +121,16 @@ class MusicPlayerViewModel(
     // Librería
     private val _librarySearchQuery = MutableStateFlow("")
     val librarySearchQuery: StateFlow<String> = _librarySearchQuery.asStateFlow()
+    private val normalizedLibrarySearchQuery: StateFlow<String> = _librarySearchQuery
+        .map { it.trim().lowercase() }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
     private val _libraryFilter = MutableStateFlow(prefs.getString("library_filter", "De la A a la Z") ?: "De la A a la Z")
     val libraryFilter: StateFlow<String> = _libraryFilter.asStateFlow()
 
     val filteredLibrarySongs: StateFlow<List<Song>> = combine(
-        visibleBaseSongs, _librarySearchQuery, _libraryFilter, _minDurationFilter, _durationFilterAllowedSongIds
+        visibleBaseSongs, normalizedLibrarySearchQuery, _libraryFilter, _minDurationFilter, _durationFilterAllowedSongIds
     ) { songs, query, filter, minDur, allowedIds ->
         songs.filter { it.matchesSearch(query) && it.passesDurationFilter(minDur, allowedIds) }.let { list ->
             when (filter) {
@@ -176,10 +184,11 @@ class MusicPlayerViewModel(
     private val _sleepTimerRemaining = MutableStateFlow<Long?>(null)
     val sleepTimerRemaining: StateFlow<Long?> = _sleepTimerRemaining.asStateFlow()
     private var sleepTimerJob: Job? = null
+    private var isLoadingSongs = false
 
     private fun Song.matchesSearch(query: String): Boolean {
         if (query.isBlank()) return true
-        return title.contains(query, ignoreCase = true) || artist.contains(query, ignoreCase = true)
+        return title.lowercase().contains(query) || artist.lowercase().contains(query)
     }
 
     private fun Song.passesDurationFilter(minDurationSeconds: Int, allowedIds: Set<String>): Boolean {
@@ -212,20 +221,27 @@ class MusicPlayerViewModel(
     }
 
     fun loadRealSongs() {
+        if (isLoadingSongs) return
         viewModelScope.launch { 
-            val songs = getSongsUseCase().filter { it.id !in _deletedSongIds.value }
-            _allSongs.value = songs
-            if (_playbackQueue.value.isEmpty()) {
-                _playbackQueue.value = songs.filter { it.id !in _manualExcludedSongIds.value }
-            }
-            
-            if (_currentSong.value == null) {
-                val lastPlayedIds = getRecentlyPlayedIdsUseCase().firstOrNull()
-                if (!lastPlayedIds.isNullOrEmpty()) {
-                    val lastSongId = lastPlayedIds.first()
-                    val lastSong = songs.find { it.id == lastSongId }
-                    if (lastSong != null) selectSong(lastSong, autoPlay = false)
+            isLoadingSongs = true
+            try {
+                val songs = getSongsUseCase().filter { it.id !in _deletedSongIds.value }
+                _allSongs.value = songs
+                playlistRepository.syncSongs(songs)
+                if (_playbackQueue.value.isEmpty()) {
+                    _playbackQueue.value = songs.filter { it.id !in _manualExcludedSongIds.value }
                 }
+                
+                if (_currentSong.value == null) {
+                    val lastPlayedIds = getRecentlyPlayedIdsUseCase().firstOrNull()
+                    if (!lastPlayedIds.isNullOrEmpty()) {
+                        val lastSongId = lastPlayedIds.first()
+                        val lastSong = songs.find { it.id == lastSongId }
+                        if (lastSong != null) selectSong(lastSong, autoPlay = false)
+                    }
+                }
+            } finally {
+                isLoadingSongs = false
             }
         }
     }
@@ -346,7 +362,9 @@ class MusicPlayerViewModel(
 
     fun createPlaylist(name: String): String = playlistRepository.createPlaylist(name)
     fun addSongToPlaylist(playlistId: String, song: Song) { playlistRepository.addSongToPlaylist(playlistId, song) }
+    fun addSongsToPlaylist(playlistId: String, songs: List<Song>) { playlistRepository.addSongsToPlaylist(playlistId, songs) }
     fun createPlaylistWithSong(name: String, song: Song): String = playlistRepository.createPlaylistWithSong(name, song)
+    fun createPlaylistWithSongs(name: String, songs: List<Song>): String = playlistRepository.createPlaylistWithSongs(name, songs)
     fun selectPlaylistForDetail(playlist: Playlist?) { _selectedPlaylist.value = playlist }
 
     fun playPlaylist(playlist: Playlist, shuffle: Boolean = false) {
@@ -424,6 +442,9 @@ class MusicPlayerViewModel(
 
     fun toggleFavorite(song: Song?) { song?.let { toggleFavoriteUseCase(it.id) } }
     fun seekTo(position: Float) { musicService.seekTo((position * _duration.value).toLong()) }
+    fun setHighFrequencyProgressUpdates(enabled: Boolean) {
+        musicService.setPositionUpdateInterval(if (enabled) 500L else 1_000L)
+    }
     
     fun toggleShuffle() { 
         _isShuffleEnabled.value = !_isShuffleEnabled.value

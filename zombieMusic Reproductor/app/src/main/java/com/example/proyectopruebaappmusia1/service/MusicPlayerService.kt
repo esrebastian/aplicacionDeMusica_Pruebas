@@ -44,6 +44,8 @@ class MusicPlayerService(private val context: Context) {
     private var mediaController: MediaController? = null
     private var positionJob: Job? = null
     private var loadedMediaIds: List<String> = emptyList()
+    private val mediaItemCache = mutableMapOf<String, MediaItem>()
+    private var positionUpdateIntervalMs = 1_000L
     
     private var pendingPlaylist: PendingPlaylist? = null
     private data class PendingPlaylist(val songs: List<Song>, val startIndex: Int, val autoPlay: Boolean)
@@ -173,7 +175,7 @@ class MusicPlayerService(private val context: Context) {
         positionJob = scope.launch {
             while (mediaController?.isPlaying == true) {
                 updatePlaybackSnapshot()
-                delay(500)
+                delay(positionUpdateIntervalMs)
             }
             updatePlaybackSnapshot()
         }
@@ -203,26 +205,7 @@ class MusicPlayerService(private val context: Context) {
             return
         }
 
-        val mediaItems = songs.map { song ->
-            val artworkUri = if (!song.albumArt.isNullOrBlank() && song.albumArt != "0") {
-                ContentUris.withAppendedId(
-                    Uri.parse("content://media/external/audio/albumart"),
-                    song.albumArt.toLongOrNull() ?: 0L
-                )
-            } else null
-
-            val metadata = MediaMetadata.Builder()
-                .setTitle(song.title)
-                .setArtist(song.artist)
-                .setArtworkUri(artworkUri)
-                .build()
-
-            MediaItem.Builder()
-                .setMediaId(song.id)
-                .setUri(song.filePath)
-                .setMediaMetadata(metadata)
-                .build()
-        }
+        val mediaItems = songs.map { song -> mediaItemCache.getOrPut(song.mediaItemCacheKey()) { song.toMediaItem() } }
 
         controller.setMediaItems(mediaItems, safeStartIndex, 0L)
         loadedMediaIds = requestedIds
@@ -244,6 +227,16 @@ class MusicPlayerService(private val context: Context) {
         mediaController?.seekTo(position)
     }
 
+    fun setPositionUpdateInterval(intervalMs: Long) {
+        val normalizedInterval = intervalMs.coerceAtLeast(250L)
+        if (positionUpdateIntervalMs == normalizedInterval) return
+        positionUpdateIntervalMs = normalizedInterval
+        if (mediaController?.isPlaying == true) {
+            stopPositionUpdates()
+            startPositionUpdates()
+        }
+    }
+
     fun updateFavoriteState(isFavorite: Boolean) {
         val controller = mediaController ?: return
         val args = Bundle().apply {
@@ -261,5 +254,29 @@ class MusicPlayerService(private val context: Context) {
         controllerFuture?.let { MediaController.releaseFuture(it) }
         mediaController = null
         loadedMediaIds = emptyList()
+        mediaItemCache.clear()
+    }
+
+    private fun Song.mediaItemCacheKey(): String = "$id|$filePath|$title|$artist|$albumArt"
+
+    private fun Song.toMediaItem(): MediaItem {
+        val artworkUri = if (!albumArt.isNullOrBlank() && albumArt != "0") {
+            ContentUris.withAppendedId(
+                Uri.parse("content://media/external/audio/albumart"),
+                albumArt.toLongOrNull() ?: 0L
+            )
+        } else null
+
+        val metadata = MediaMetadata.Builder()
+            .setTitle(title)
+            .setArtist(artist)
+            .setArtworkUri(artworkUri)
+            .build()
+
+        return MediaItem.Builder()
+            .setMediaId(id)
+            .setUri(filePath)
+            .setMediaMetadata(metadata)
+            .build()
     }
 }

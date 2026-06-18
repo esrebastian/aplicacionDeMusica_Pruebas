@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import com.example.proyectopruebaappmusia1.domain.model.Playlist
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,50 +15,93 @@ private const val KEY_CUSTOM_PLAYLISTS = "custom_playlists_json"
 class PlaylistRepository(private val prefs: SharedPreferences) {
 
     private val gson = Gson()
-    private val _customPlaylists = MutableStateFlow<List<Playlist>>(loadPlaylists())
+    private var songLookup: Map<String, Song> = emptyMap()
+    private var fallbackSongLookup: Map<String, Song> = emptyMap()
+    private var storedPlaylists: List<StoredPlaylist> = loadStoredPlaylists()
+    private val _customPlaylists = MutableStateFlow(hydratePlaylists(storedPlaylists))
     val customPlaylists: StateFlow<List<Playlist>> = _customPlaylists.asStateFlow()
 
-    private fun loadPlaylists(): List<Playlist> {
+    private data class StoredPlaylist(
+        val id: String,
+        val name: String,
+        val coverImage: String? = null,
+        val songIds: List<String> = emptyList()
+    )
+
+    private fun loadStoredPlaylists(): List<StoredPlaylist> {
         val json = prefs.getString(KEY_CUSTOM_PLAYLISTS, null) ?: return emptyList()
-        val type = object : TypeToken<List<Playlist>>() {}.type
         return try {
-            val playlists = gson.fromJson<List<Playlist>>(json, type).orEmpty()
-            playlists.map { it.withNormalizedMetadata() }
+            val root = JsonParser().parse(json).asJsonArray
+            val firstObject = root.firstOrNull()?.getAsJsonObject()
+            if (firstObject?.has("songIds") == true) {
+                val type = object : TypeToken<List<StoredPlaylist>>() {}.type
+                gson.fromJson<List<StoredPlaylist>>(json, type).orEmpty()
+            } else {
+                val type = object : TypeToken<List<Playlist>>() {}.type
+                val legacyPlaylists = gson.fromJson<List<Playlist>>(json, type).orEmpty()
+                fallbackSongLookup = legacyPlaylists.flatMap { it.songs }.associateBy { it.id }
+                legacyPlaylists.map { playlist ->
+                    StoredPlaylist(
+                        id = playlist.id,
+                        name = playlist.name,
+                        coverImage = playlist.coverImage,
+                        songIds = playlist.songs.map { it.id }
+                    )
+                }
+            }
         } catch (e: Exception) {
             emptyList()
         }
     }
 
-    private fun savePlaylists(playlists: List<Playlist>) {
-        val normalizedPlaylists = playlists.map { it.withNormalizedMetadata() }
-        val json = gson.toJson(normalizedPlaylists)
+    private fun savePlaylists(playlists: List<StoredPlaylist>) {
+        storedPlaylists = playlists
+        val json = gson.toJson(playlists)
         prefs.edit().putString(KEY_CUSTOM_PLAYLISTS, json).apply()
-        _customPlaylists.value = normalizedPlaylists
+        _customPlaylists.value = hydratePlaylists(playlists)
     }
 
     private fun Song.validAlbumArt(): String? {
         return albumArt?.takeIf { it.isNotBlank() && it != "0" }
     }
 
-    private fun Playlist.withNormalizedMetadata(): Playlist {
-        val normalizedCover = coverImage
-            ?.takeIf { it.isNotBlank() && it != "0" }
-            ?: songs.firstNotNullOfOrNull { it.validAlbumArt() }
+    private fun hydratePlaylists(playlists: List<StoredPlaylist>): List<Playlist> {
+        return playlists.map { playlist ->
+            val songs = playlist.songIds.mapNotNull { id -> songLookup[id] ?: fallbackSongLookup[id] }
+            Playlist(
+                id = playlist.id,
+                name = playlist.name,
+                songCount = songs.size,
+                coverImage = playlist.coverImage
+                    ?.takeIf { it.isNotBlank() && it != "0" }
+                    ?: songs.firstNotNullOfOrNull { it.validAlbumArt() },
+                songs = songs
+            )
+        }
+    }
 
+    fun syncSongs(songs: List<Song>) {
+        songLookup = songs.associateBy { it.id }
+        _customPlaylists.value = hydratePlaylists(storedPlaylists)
+    }
+
+    private fun StoredPlaylist.withSongsAdded(songs: List<Song>): StoredPlaylist {
+        val updatedIds = (songIds + songs.map { it.id }).distinct()
         return copy(
-            songCount = songs.size,
-            coverImage = normalizedCover
+            songIds = updatedIds,
+            coverImage = coverImage
+                ?.takeIf { it.isNotBlank() && it != "0" }
+                ?: songs.firstNotNullOfOrNull { it.validAlbumArt() }
         )
     }
 
     fun createPlaylist(name: String): String {
-        val current = _customPlaylists.value.toMutableList()
+        val current = storedPlaylists.toMutableList()
         val playlistId = "custom_${System.currentTimeMillis()}"
-        val newPlaylist = Playlist(
+        val newPlaylist = StoredPlaylist(
             id = playlistId,
             name = name,
-            songCount = 0,
-            songs = emptyList()
+            songIds = emptyList()
         )
         current.add(newPlaylist)
         savePlaylists(current)
@@ -65,13 +109,14 @@ class PlaylistRepository(private val prefs: SharedPreferences) {
     }
 
     fun addSongToPlaylist(playlistId: String, song: Song) {
-        val current = _customPlaylists.value.map { playlist ->
+        addSongsToPlaylist(playlistId, listOf(song))
+    }
+
+    fun addSongsToPlaylist(playlistId: String, songs: List<Song>) {
+        if (songs.isEmpty()) return
+        val current = storedPlaylists.map { playlist ->
             if (playlist.id == playlistId) {
-                val updatedSongs = playlist.songs.toMutableList()
-                if (!updatedSongs.any { it.id == song.id }) {
-                    updatedSongs.add(song)
-                }
-                playlist.copy(songs = updatedSongs).withNormalizedMetadata()
+                playlist.withSongsAdded(songs)
             } else {
                 playlist
             }
@@ -80,15 +125,18 @@ class PlaylistRepository(private val prefs: SharedPreferences) {
     }
 
     fun createPlaylistWithSong(name: String, song: Song): String {
-        val current = _customPlaylists.value.toMutableList()
+        return createPlaylistWithSongs(name, listOf(song))
+    }
+
+    fun createPlaylistWithSongs(name: String, songs: List<Song>): String {
+        val current = storedPlaylists.toMutableList()
         val playlistId = "custom_${System.currentTimeMillis()}"
         current.add(
-            Playlist(
+            StoredPlaylist(
                 id = playlistId,
                 name = name,
-                songCount = 1,
-                coverImage = song.validAlbumArt(),
-                songs = listOf(song)
+                coverImage = songs.firstNotNullOfOrNull { it.validAlbumArt() },
+                songIds = songs.map { it.id }.distinct()
             )
         )
         savePlaylists(current)

@@ -601,8 +601,14 @@ fun HomeOnlineSearchResults(
         else -> {
             Column {
                 SectionTitle("Resultados en línea")
-                results.forEach { track ->
-                    OnlineSearchResultItem(track = track, onClick = { onTrackClick(track) })
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                ) {
+                    items(results, key = { it.id }, contentType = { "online_track" }) { track ->
+                        OnlineSearchResultItem(track = track, onClick = { onTrackClick(track) })
+                    }
                 }
             }
         }

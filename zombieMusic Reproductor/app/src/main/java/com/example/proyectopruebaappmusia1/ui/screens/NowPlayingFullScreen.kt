@@ -50,6 +50,11 @@ fun NowPlayingFullScreen(
     var showQueueSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    DisposableEffect(viewModel) {
+        viewModel.setHighFrequencyProgressUpdates(true)
+        onDispose { viewModel.setHighFrequencyProgressUpdates(false) }
+    }
+
     LaunchedEffect(currentPosition, duration, isUserSeeking) {
         if (!isUserSeeking && duration > 0) {
             sliderPosition = (currentPosition.toFloat() / duration).coerceIn(0f, 1f)
@@ -91,6 +96,7 @@ fun NowPlayingFullScreen(
                 AlbumArtImage(
                     albumArtId = currentSong?.albumArt,
                     contentDescription = null,
+                    highQuality = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1f)
