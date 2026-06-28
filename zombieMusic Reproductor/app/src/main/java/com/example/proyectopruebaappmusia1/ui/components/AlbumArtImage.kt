@@ -38,7 +38,7 @@ fun AlbumArtImage(
                 .data(it)
                 .memoryCacheKey("album_art_${albumArtId}_${if (highQuality) "large" else "thumb"}")
                 .diskCacheKey("album_art_${albumArtId}_${if (highQuality) "large" else "thumb"}")
-                .size(if (highQuality) 1024 else 256)
+                .size(if (highQuality) 1024 else 96)
                 .precision(Precision.INEXACT)
                 .crossfade(false)
                 .build()

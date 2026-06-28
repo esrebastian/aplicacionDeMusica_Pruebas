@@ -5,8 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,7 +17,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -27,8 +24,8 @@ import com.example.proyectopruebaappmusia1.domain.model.Playlist
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.ui.components.MusicIconButton
+import com.example.proyectopruebaappmusia1.ui.components.PagedSongList
 import com.example.proyectopruebaappmusia1.ui.components.SettingsButton
-import com.example.proyectopruebaappmusia1.ui.components.SongListItem
 import com.example.proyectopruebaappmusia1.viewmodel.MusicPlayerViewModel
 
 @Composable
@@ -39,23 +36,27 @@ fun LibraryScreen(
 ) {
     val songs by viewModel.filteredLibrarySongs.collectAsStateWithLifecycle(initialValue = emptyList())
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle(initialValue = null)
-    val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle(initialValue = emptySet())
     val libraryFilter by viewModel.libraryFilter.collectAsStateWithLifecycle(initialValue = "De la A a la Z")
     val searchQuery by viewModel.librarySearchQuery.collectAsStateWithLifecycle(initialValue = "")
     val customPlaylists by viewModel.customPlaylists.collectAsStateWithLifecycle(initialValue = emptyList())
     
+    // OPTIMIZACIÓN: Memorizamos las lambdas para que el scroll sea fluido incluso si el reproductor cambia de estado
+    val onSearchChangeMemo = remember { { query: String -> viewModel.onSearchLibrary(query) } }
+    val onFilterSelectMemo = remember { { filter: String -> viewModel.setLibraryFilter(filter) } }
+    val onSongClickMemo = remember(songs) { { song: Song -> viewModel.selectSong(song, newQueue = songs) } }
+    val onFavoriteClickMemo = remember { { song: Song -> viewModel.toggleFavorite(song) } }
+
     LibraryContent(
         songs = songs,
         currentSong = currentSong,
-        favoriteIds = favoriteIds,
         customPlaylists = customPlaylists,
         libraryFilter = libraryFilter,
         searchQuery = searchQuery,
         onSettingsClick = onSettingsClick,
-        onSearchChange = { viewModel.onSearchLibrary(it) },
-        onFilterSelect = { viewModel.setLibraryFilter(it) },
-        onSongClick = { song -> viewModel.selectSong(song, newQueue = songs) },
-        onFavoriteClick = { viewModel.toggleFavorite(it) },
+        onSearchChange = onSearchChangeMemo,
+        onFilterSelect = onFilterSelectMemo,
+        onSongClick = onSongClickMemo,
+        onFavoriteClick = onFavoriteClickMemo,
         onAddToPlaylist = { playlistId, song -> viewModel.addSongToPlaylist(playlistId, song) },
         onCreatePlaylistWithSong = { name, song -> viewModel.createPlaylistWithSong(name, song) },
         onAddSongsToPlaylist = { playlistId, selectedSongs -> viewModel.addSongsToPlaylist(playlistId, selectedSongs) },
@@ -71,7 +72,6 @@ fun LibraryScreen(
 fun LibraryContent(
     songs: List<Song>,
     currentSong: Song?,
-    favoriteIds: Set<String>,
     customPlaylists: List<Playlist>,
     libraryFilter: String,
     searchQuery: String,
@@ -94,13 +94,10 @@ fun LibraryContent(
     var showSongActions by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val listState = rememberLazyListState()
+
     val selectedSongs = remember(songs, selectedSongIds) {
         songs.filter { it.id in selectedSongIds }
     }
-    LaunchedEffect(songs) {
-        selectedSongIds = selectedSongIds.intersect(songs.map { it.id }.toSet())
-    }
-    val filterOptions = listOf("De la A a la Z", "Artista", "Más recientes", "Duración más larga")
 
     Column(
         modifier = modifier
@@ -115,24 +112,11 @@ fun LibraryContent(
             onSettingsClick = onSettingsClick,
             onActionsClick = { showSongActions = true },
             onDismissActions = { showSongActions = false },
-            onAddToPlaylist = {
-                songsToAdd = selectedSongs
-                showSongActions = false
-            },
-            onExclude = {
-                selectedSongs.forEach(onExcludeSong)
-                selectedSongIds = emptySet()
-                showSongActions = false
-            },
-            onShare = {
-                shareSongs(context, selectedSongs)
-                showSongActions = false
-            },
-            onDelete = {
-                selectedSongs.forEach(onDeleteSong)
-                selectedSongIds = emptySet()
-                showSongActions = false
-            }
+            onAddToPlaylist = { songsToAdd = selectedSongs; showSongActions = false },
+            onToggleFavorite = { selectedSongs.forEach(onFavoriteClick); selectedSongIds = emptySet(); showSongActions = false },
+            onExclude = { selectedSongs.forEach(onExcludeSong); selectedSongIds = emptySet(); showSongActions = false },
+            onShare = { shareSongs(context, selectedSongs); showSongActions = false },
+            onDelete = { selectedSongs.forEach(onDeleteSong); selectedSongIds = emptySet(); showSongActions = false }
         )
 
         Row(
@@ -143,7 +127,7 @@ fun LibraryContent(
             TextField(
                 value = searchQuery,
                 onValueChange = onSearchChange,
-                placeholder = { Text("Buscar en tu música...", color = SecondaryText) },
+                placeholder = { Text("Buscar...", color = SecondaryText) },
                 modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp)),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = CardGreenBg,
@@ -169,46 +153,34 @@ fun LibraryContent(
                     onDismissRequest = { showFilterMenu = false },
                     modifier = Modifier.background(CardGreenBg)
                 ) {
-                    filterOptions.forEach { option ->
+                    listOf("De la A a la Z", "Artista", "Más recientes", "Duración más larga").forEach { option ->
                         DropdownMenuItem(
                             text = { Text(option, color = if (libraryFilter == option) AccentGreen else PrimaryText) },
-                            onClick = { 
-                                onFilterSelect(option)
-                                showFilterMenu = false 
-                            }
+                            onClick = { onFilterSelect(option); showFilterMenu = false }
                         )
                     }
                 }
             }
         }
 
-        LazyColumn(
-            state = listState, 
+        PagedSongList(
+            songs = songs,
+            currentSong = currentSong,
+            selectedSongIds = selectedSongIds,
+            listState = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 80.dp)
-        ) {
-            items(songs, key = { it.id }, contentType = { "library_song" }) { song ->
-                SongListItem(
-                    song = song,
-                    isCurrent = song.id == currentSong?.id,
-                    isFavorite = song.id in favoriteIds,
-                    isSelected = song.id in selectedSongIds,
-                    onFavoriteClick = { onFavoriteClick(song) },
-                    onClick = {
-                        if (selectedSongIds.isNotEmpty()) {
-                            selectedSongIds = if (song.id in selectedSongIds) {
-                                selectedSongIds - song.id
-                            } else {
-                                selectedSongIds + song.id
-                            }
-                        } else {
-                            onSongClick(song)
-                        }
-                    },
-                    onLongClick = { selectedSongIds = selectedSongIds + song.id }
-                )
-            }
-        }
+            initialBatchSize = 40,
+            nextBatchSize = 40,
+            onSongClick = { song ->
+                if (selectedSongIds.isNotEmpty()) {
+                    selectedSongIds = if (song.id in selectedSongIds) selectedSongIds - song.id else selectedSongIds + song.id
+                } else {
+                    onSongClick(song)
+                }
+            },
+            onSongLongClick = { song -> selectedSongIds = selectedSongIds + song.id },
+            onFavoriteClick = onFavoriteClick
+        )
     }
 
     if (songsToAdd.isNotEmpty()) {
@@ -217,22 +189,14 @@ fun LibraryContent(
             playlists = customPlaylists,
             onDismiss = { songsToAdd = emptyList() },
             onAddToPlaylist = { playlistId ->
-                if (songsToAdd.size == 1) {
-                    onAddToPlaylist(playlistId, songsToAdd.first())
-                } else {
-                    onAddSongsToPlaylist(playlistId, songsToAdd)
-                }
-                songsToAdd = emptyList()
-                selectedSongIds = emptySet()
+                if (songsToAdd.size == 1) onAddToPlaylist(playlistId, songsToAdd.first())
+                else onAddSongsToPlaylist(playlistId, songsToAdd)
+                songsToAdd = emptyList(); selectedSongIds = emptySet()
             },
             onCreatePlaylistWithSong = { name ->
-                if (songsToAdd.size == 1) {
-                    onCreatePlaylistWithSong(name, songsToAdd.first())
-                } else {
-                    onCreatePlaylistWithSongs(name, songsToAdd)
-                }
-                songsToAdd = emptyList()
-                selectedSongIds = emptySet()
+                if (songsToAdd.size == 1) onCreatePlaylistWithSong(name, songsToAdd.first())
+                else onCreatePlaylistWithSongs(name, songsToAdd)
+                songsToAdd = emptyList(); selectedSongIds = emptySet()
             }
         )
     }
@@ -246,6 +210,7 @@ private fun LibraryHeader(
     onActionsClick: () -> Unit,
     onDismissActions: () -> Unit,
     onAddToPlaylist: () -> Unit,
+    onToggleFavorite: () -> Unit,
     onExclude: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit
@@ -265,15 +230,7 @@ private fun LibraryHeader(
 
         Box {
             if (hasSelectedSong) {
-                MusicIconButton(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Opciones de cancion",
-                    onClick = onActionsClick,
-                    tint = SecondaryText,
-                    containerColor = CardGreenBg,
-                    buttonSize = 48.dp,
-                    iconSize = 24.dp
-                )
+                IconButton(onClick = onActionsClick) { Icon(Icons.Default.MoreVert, null, tint = SecondaryText) }
             } else {
                 SettingsButton(onClick = onSettingsClick)
             }
@@ -289,7 +246,12 @@ private fun LibraryHeader(
                     onClick = onAddToPlaylist
                 )
                 DropdownMenuItem(
-                    text = { Text("Sacar de la cola", color = PrimaryText) },
+                    text = { Text("Agregar/Quitar favorito", color = PrimaryText) },
+                    leadingIcon = { Icon(Icons.Default.Favorite, null, tint = AccentGreen) },
+                    onClick = onToggleFavorite
+                )
+                DropdownMenuItem(
+                    text = { Text("Sacar de la biblioteca", color = PrimaryText) },
                     leadingIcon = { Icon(Icons.Default.RemoveCircleOutline, null, tint = AccentGreen) },
                     onClick = onExclude
                 )
@@ -299,8 +261,8 @@ private fun LibraryHeader(
                     onClick = onShare
                 )
                 DropdownMenuItem(
-                    text = { Text("Eliminar", color = Color.Red.copy(alpha = 0.82f)) },
-                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red.copy(alpha = 0.82f)) },
+                    text = { Text("Eliminar", color = Color.Red) },
+                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) },
                     onClick = onDelete
                 )
             }
@@ -310,31 +272,20 @@ private fun LibraryHeader(
 
 private fun shareSongs(context: Context, songs: List<Song>) {
     if (songs.isEmpty()) return
-
-    val uris = ArrayList(
-        songs.mapNotNull { song ->
-            song.filePath.takeIf { it.isNotBlank() }?.let(Uri::parse)
-        }
-    )
+    val uris = ArrayList(songs.mapNotNull { song -> song.filePath.takeIf { it.isNotBlank() }?.let(Uri::parse) })
     val shareText = songs.joinToString(separator = "\n") { "${it.title} - ${it.artist}" }
     val intent = if (uris.size > 1) {
         Intent(Intent.ACTION_SEND_MULTIPLE).apply {
-            type = "audio/*"
-            putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
-            putExtra(Intent.EXTRA_TEXT, shareText)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            type = "audio/*"; putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+            putExtra(Intent.EXTRA_TEXT, shareText); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     } else {
         Intent(Intent.ACTION_SEND).apply {
-            type = if (uris.isNotEmpty()) "audio/*" else "text/plain"
-            putExtra(Intent.EXTRA_TEXT, shareText)
-            uris.firstOrNull()?.let {
-                putExtra(Intent.EXTRA_STREAM, it)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
+            type = "audio/*"; uris.firstOrNull()?.let { putExtra(Intent.EXTRA_STREAM, it) }
+            putExtra(Intent.EXTRA_TEXT, shareText); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     }
-    context.startActivity(Intent.createChooser(intent, "Compartir cancion"))
+    context.startActivity(Intent.createChooser(intent, "Compartir canción"))
 }
 
 @Composable
@@ -345,95 +296,42 @@ fun AddToPlaylistDialog(
     onAddToPlaylist: (String) -> Unit,
     onCreatePlaylistWithSong: (String) -> Unit
 ) {
-    var newPlaylistName by remember { mutableStateOf("") }
-
+    var newName by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = CardGreenBg,
         title = { Text("Agrega a una playlist", color = PrimaryText) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    if (songs.size == 1) songs.first().title else "${songs.size} canciones seleccionadas",
-                    color = SecondaryText,
-                    fontSize = 14.sp,
-                    maxLines = 1
-                )
-
                 if (playlists.isNotEmpty()) {
                     playlists.forEach { playlist ->
-                        TextButton(
-                            onClick = { onAddToPlaylist(playlist.id) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                playlist.name,
-                                color = AccentGreen,
-                                modifier = Modifier.weight(1f)
-                            )
+                        TextButton(onClick = { onAddToPlaylist(playlist.id) }, modifier = Modifier.fillMaxWidth()) {
+                            Text(playlist.name, color = AccentGreen, modifier = Modifier.weight(1f))
                             Text("${playlist.songCount}", color = SecondaryText)
                         }
                     }
-                } else {
-                    Text("Crea una playlist y la agregala", color = SecondaryText, fontSize = 14.sp)
                 }
-
                 TextField(
-                    value = newPlaylistName,
-                    onValueChange = { newPlaylistName = it },
+                    value = newName,
+                    onValueChange = { newName = it },
                     placeholder = { Text("Nueva playlist", color = SecondaryText) },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = DarkGreenBg,
                         unfocusedContainerColor = DarkGreenBg,
                         focusedTextColor = PrimaryText,
                         unfocusedTextColor = PrimaryText,
-                        cursorColor = AccentGreen,
-                        focusedIndicatorColor = AccentGreen
+                        cursorColor = AccentGreen
                     )
                 )
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = { onCreatePlaylistWithSong(newPlaylistName.trim()) },
-                enabled = newPlaylistName.isNotBlank()
-            ) {
+            TextButton(onClick = { onCreatePlaylistWithSong(newName.trim()) }, enabled = newName.isNotBlank()) {
                 Text("CREAR Y AGREGAR", color = AccentGreen, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("CANCELAR", color = SecondaryText)
-            }
+            TextButton(onClick = onDismiss) { Text("CANCELAR", color = SecondaryText) }
         }
     )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun LibraryScreenPreview() {
-    ProyectoPruebaAppMusia1Theme {
-        LibraryContent(
-            songs = listOf(
-                Song("1", "Song One", "Artist A", 180000, "", null),
-                Song("2", "Song Two", "Artist B", 240000, "", null)
-            ),
-            currentSong = null,
-            favoriteIds = setOf("1"),
-            customPlaylists = emptyList(),
-            libraryFilter = "De la A a la Z",
-            searchQuery = "",
-            onSettingsClick = {},
-            onSearchChange = {},
-            onFilterSelect = {},
-            onSongClick = {},
-            onFavoriteClick = {},
-            onAddToPlaylist = { _, _ -> },
-            onCreatePlaylistWithSong = { _, _ -> },
-            onAddSongsToPlaylist = { _, _ -> },
-            onCreatePlaylistWithSongs = { _, _ -> },
-            onExcludeSong = {},
-            onDeleteSong = {}
-        )
-    }
 }

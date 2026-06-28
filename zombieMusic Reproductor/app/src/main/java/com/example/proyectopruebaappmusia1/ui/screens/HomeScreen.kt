@@ -37,6 +37,7 @@ import com.example.proyectopruebaappmusia1.ui.components.OnlineSearchResultItem
 import com.example.proyectopruebaappmusia1.ui.theme.*
 import com.example.proyectopruebaappmusia1.ui.components.AlbumArtImage
 import com.example.proyectopruebaappmusia1.ui.components.MusicIconButton
+import com.example.proyectopruebaappmusia1.ui.components.PagedSongList
 import com.example.proyectopruebaappmusia1.ui.components.SettingsButton
 import com.example.proyectopruebaappmusia1.ui.components.SongListItem
 import com.example.proyectopruebaappmusia1.util.TimeUtils
@@ -342,19 +343,16 @@ fun RecentlyPlayedDialog(
                     }
                 }
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(songs, key = { it.id }, contentType = { "recent_dialog_song" }) { song ->
-                    SongListItem(
-                        song = song,
-                        isCurrent = song.id == currentSong?.id,
-                        onClick = { onSongClick(song) }
-                    )
-                }
-            }
+                PagedSongList(
+                    songs = songs,
+                    currentSong = currentSong,
+                    modifier = Modifier.fillMaxSize(),
+                    initialBatchSize = 35,
+                    nextBatchSize = 25,
+                    contentPadding = PaddingValues(bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    onSongClick = onSongClick
+                )
             }
         }
     }

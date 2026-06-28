@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,8 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -36,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.ui.components.AlbumArtImage
+import com.example.proyectopruebaappmusia1.ui.components.PagedSongList
 import com.example.proyectopruebaappmusia1.ui.theme.AccentGreen
 import com.example.proyectopruebaappmusia1.ui.theme.CardGreenBg
 import com.example.proyectopruebaappmusia1.ui.theme.DarkGreenBg
@@ -85,17 +85,16 @@ fun ExcludedSongsDialog(
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    LazyColumn(
+                    PagedSongList(
+                        songs = excludedSongs,
+                        currentSong = null,
                         modifier = Modifier.heightIn(max = 420.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(excludedSongs, key = { it.id }) { song ->
-                            ExcludedSongRow(
-                                song = song,
-                                onClick = { selectedSong = song }
-                            )
-                        }
-                    }
+                        initialBatchSize = 40,
+                        nextBatchSize = 30,
+                        contentPadding = PaddingValues(bottom = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        onSongClick = { selectedSong = it }
+                    )
                 }
             }
         },
@@ -116,36 +115,6 @@ fun ExcludedSongsDialog(
                 selectedSong = null
             }
         )
-    }
-}
-
-@Composable
-private fun ExcludedSongRow(
-    song: Song,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        color = DarkGreenBg,
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AlbumArtImage(
-                albumArtId = song.albumArt,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp)
-            )
-            Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-                Text(song.title, color = PrimaryText, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                Text(song.artist, color = SecondaryText, fontSize = 12.sp, maxLines = 1)
-            }
-            Text(TimeUtils.formatTime(song.duration), color = AccentGreen, fontSize = 12.sp)
-        }
     }
 }
 
