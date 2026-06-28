@@ -11,10 +11,12 @@ import com.example.proyectopruebaappmusia1.domain.model.Playlist
 import com.example.proyectopruebaappmusia1.domain.model.Song
 import com.example.proyectopruebaappmusia1.domain.usecase.*
 import com.example.proyectopruebaappmusia1.service.MusicPlayerService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Calendar
 import kotlin.random.Random
@@ -106,10 +108,16 @@ class MusicPlayerViewModel(
         if (manualExcludedIds.isEmpty()) songs else songs.filter { it.id !in manualExcludedIds }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    private val playableSongs: StateFlow<List<Song>> = combine(
+        visibleBaseSongs, _minDurationFilter, _durationFilterAllowedSongIds
+    ) { songs, minDur, allowedIds ->
+        songs.filter { it.passesDurationFilter(minDur, allowedIds) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val filteredHomeSongs: StateFlow<List<Song>> = combine(
-        visibleBaseSongs, normalizedHomeSearchQuery, _homeFilter, _minDurationFilter, _durationFilterAllowedSongIds
-    ) { songs, query, filter, minDur, allowedIds ->
-        songs.filter { it.matchesSearch(query) && it.passesDurationFilter(minDur, allowedIds) }.let { list ->
+        playableSongs, normalizedHomeSearchQuery, _homeFilter
+    ) { songs, query, filter ->
+        songs.filter { it.matchesSearch(query) }.let { list ->
             when (filter) {
                 FilterOption.TITLE -> list.sortedBy { it.title }
                 FilterOption.ARTIST -> list.sortedBy { it.artist }
@@ -130,9 +138,9 @@ class MusicPlayerViewModel(
     val libraryFilter: StateFlow<String> = _libraryFilter.asStateFlow()
 
     val filteredLibrarySongs: StateFlow<List<Song>> = combine(
-        visibleBaseSongs, normalizedLibrarySearchQuery, _libraryFilter, _minDurationFilter, _durationFilterAllowedSongIds
-    ) { songs, query, filter, minDur, allowedIds ->
-        songs.filter { it.matchesSearch(query) && it.passesDurationFilter(minDur, allowedIds) }.let { list ->
+        playableSongs, normalizedLibrarySearchQuery, _libraryFilter
+    ) { songs, query, filter ->
+        songs.filter { it.matchesSearch(query) }.let { list ->
             when (filter) {
                 "De la A a la Z" -> list.sortedBy { it.title }
                 "Artista" -> list.sortedBy { it.artist }
@@ -171,7 +179,7 @@ class MusicPlayerViewModel(
         ids.mapNotNull { id -> songsById[id] }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val favoriteSongs: StateFlow<List<Song>> = combine(_allSongs, favoriteIds) { songs, ids ->
+    val favoriteSongs: StateFlow<List<Song>> = combine(playableSongs, favoriteIds) { songs, ids ->
         songs.filter { it.id in ids }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -200,16 +208,24 @@ class MusicPlayerViewModel(
         loadRealSongs()
         
         viewModelScope.launch {
-            combine(favoriteSongs, _allSongs, playlistRepository.customPlaylists) { favorites, all, custom ->
+            combine(favoriteSongs, playableSongs, playlistRepository.customPlaylists) { favorites, playable, custom ->
                 val result = mutableListOf<Playlist>()
                 result.add(Playlist("fav_playlist", "Favoritos", favorites.size, favorites.firstOrNull()?.albumArt, favorites))
-                if (all.isNotEmpty()) {
+                if (playable.isNotEmpty()) {
                     val calendar = Calendar.getInstance()
                     val seed = calendar.get(Calendar.YEAR) * 1000 + calendar.get(Calendar.DAY_OF_YEAR)
-                    val dailyMixSongs = all.shuffled(Random(seed)).take(20)
+                    val dailyMixSongs = playable.shuffled(Random(seed)).take(20)
                     result.add(Playlist("daily_mix", "Mix Diario", dailyMixSongs.size, dailyMixSongs.firstOrNull()?.albumArt, dailyMixSongs))
                 }
-                result.addAll(custom)
+                val playableIds = playable.asSequence().map { it.id }.toSet()
+                result.addAll(custom.map { playlist ->
+                    val filteredSongs = playlist.songs.filter { it.id in playableIds }
+                    playlist.copy(
+                        songCount = filteredSongs.size,
+                        coverImage = filteredSongs.firstOrNull()?.albumArt ?: playlist.coverImage,
+                        songs = filteredSongs
+                    )
+                })
                 result
             }.collect { playlists ->
                 _homePlaylists.value = playlists
@@ -225,19 +241,25 @@ class MusicPlayerViewModel(
         viewModelScope.launch { 
             isLoadingSongs = true
             try {
-                val songs = getSongsUseCase().filter { it.id !in _deletedSongIds.value }
+                val songs = withContext(Dispatchers.IO) {
+                    getSongsUseCase().filter { it.id !in _deletedSongIds.value }
+                }
                 _allSongs.value = songs
                 playlistRepository.syncSongs(songs)
+                val startupPlayableSongs = songs.filter {
+                    it.id !in _manualExcludedSongIds.value &&
+                        it.passesDurationFilter(_minDurationFilter.value, _durationFilterAllowedSongIds.value)
+                }
                 if (_playbackQueue.value.isEmpty()) {
-                    _playbackQueue.value = songs.filter { it.id !in _manualExcludedSongIds.value }
+                    _playbackQueue.value = startupPlayableSongs
                 }
                 
                 if (_currentSong.value == null) {
                     val lastPlayedIds = getRecentlyPlayedIdsUseCase().firstOrNull()
                     if (!lastPlayedIds.isNullOrEmpty()) {
                         val lastSongId = lastPlayedIds.first()
-                        val lastSong = songs.find { it.id == lastSongId }
-                        if (lastSong != null) selectSong(lastSong, autoPlay = false)
+                        val lastSong = startupPlayableSongs.find { it.id == lastSongId }
+                        if (lastSong != null) selectSong(lastSong, autoPlay = false, newQueue = startupPlayableSongs)
                     }
                 }
             } finally {

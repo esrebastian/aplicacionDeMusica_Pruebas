@@ -148,7 +148,10 @@ class MainActivity : ComponentActivity() {
 
                                 MusicBottomNavigation(
                                     selectedTab = selectedTab,
-                                    onTabSelected = { selectedTab = it }
+                                    onTabSelected = {
+                                        selectedTab = it
+                                        musicViewModel.selectPlaylistForDetail(null)
+                                    }
                                 )
                             }
                         }
